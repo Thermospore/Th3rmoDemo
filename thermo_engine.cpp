@@ -23,8 +23,8 @@ struct map
 int main()
 {
 	// Set constants
-	int dispH = 23*2;
-	int dispW = 79*2;
+	int dispH = 23;
+	int dispW = 79;
 	
 	float fov = 90 * (PI / 180); // Convert to radians
 	

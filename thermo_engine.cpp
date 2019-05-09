@@ -80,6 +80,16 @@ int main()
 	char input = '\0';
 	while (input != 'h')
 	{
+		// Wrap player theta
+		if (thermo.theta >= 2*PI)
+		{
+			thermo.theta -= 2*PI;
+		}
+		else if (thermo.theta < 0)
+		{
+			thermo.theta += 2*PI;
+		}
+		
 		// Loop for each ray
 		float spacing = fov / dispW;
 		float startTheta = thermo.theta + (fov / 2);
@@ -88,22 +98,47 @@ int main()
 			// Find angle of ray
 			float rayTheta = startTheta - (spacing / 2) - (spacing * r);
 			
-			// Find ray length from player to wall
-			float distRay = 0;
-			if ( rayTheta <= atan((1 - thermo.posY) / (1 - thermo.posX)) )
-			{ // Right wall
-				distRay = (1 - thermo.posX) / cos(rayTheta);
+			// Loop rayTheta back around
+			if (rayTheta >= 2*PI)
+			{
+				rayTheta -= 2*PI;
 			}
-			else
-			{ // Upper wall
-				distRay = (1 - thermo.posY) / sin(rayTheta);
+			else if (rayTheta < 0)
+			{
+				rayTheta += 2*PI;
+			}
+			
+			// Find ray length from player to wall
+			float rayDist = 0;
+			if ( // Right wall
+				rayTheta <= atan((1 - thermo.posY) / (1 - thermo.posX))
+				|| rayTheta >= 2*PI - atan((1 - thermo.posY) / (thermo.posX))
+			)
+			{
+				rayDist = (1 - thermo.posX) / cos(rayTheta);
+			}
+			else if ( // Upper wall
+				rayTheta <= PI - atan((1 - thermo.posY) / (thermo.posX))
+			)
+			{
+				rayDist = (1 - thermo.posY) / sin(rayTheta);
+			}
+			else if( // Left Wall
+				rayTheta <= PI + atan((thermo.posY) / (thermo.posX))
+			)
+			{
+				rayDist = (-thermo.posX) / cos(rayTheta);
+			}
+			else // Rear Wall
+			{
+				rayDist = (-thermo.posY) / sin(rayTheta);
 			}
 			
 			// Adjust ray for aberration?
-			distRay *= cos(thermo.theta - rayTheta);
+			rayDist *= cos(thermo.theta - rayTheta);
 			
 			// Calculate column height
-			float colH = (distColMax - distRay) * (dispH / (distColMax - distColMin));
+			float colH = (distColMax - rayDist) * (dispH / (distColMax - distColMin));
 			
 			// Store to screen buffer
 			for (int y = 0; y < dispH; y++)
@@ -128,7 +163,7 @@ int main()
 			}
 			
 			// Print ray info
-			//printf("r%2d: Th: %8f dR %9f cH%5.2f\n", r, rayTheta, distRay, colH);
+			//printf("r%2d: Th: %8f dR %9f cH%5.2f\n", r, rayTheta, rayDist, colH);
 		}
 		
 		// Draw edges
@@ -256,7 +291,7 @@ int main()
 			case 'q': { thermo.theta += speedTurn; break; }
 			case 'e': { thermo.theta -= speedTurn; break; }
 			default: { break; }
-		}		
+		}
 	}
 	
 	return 0;

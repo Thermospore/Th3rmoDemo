@@ -258,45 +258,62 @@ int main()
 			printf("\n");
 		}
 		
-		// Print stats and controls
-		printf
-		(
-			"pos:(%1.2f, %1.2f) theta:%2.0f | h = quit | wasd = move | q/e = look : "
-			, thermo.posX, thermo.posY, thermo.theta * (180/PI)
-		);
-		
-		// Get input
-		scanf(" %c", &input);
-		switch(input)
+		// UI
+		if (input == 'o') // Options menu
 		{
-			case 'h': { break; }
-			case 'w':
+			printf
+			(
+				"b = back | \n> "
+				, thermo.posX, thermo.posY, thermo.theta * (180/PI), 248 // Degree symbol
+			);
+			
+			// Get input
+			scanf(" %c", &input);
+			switch(input)
+			case 'b': { break; } // Return to main menu
+		}
+		else // Main menu
+		{
+			printf
+			(
+				"pos:(%1.2f, %1.2f) theta:%3.0f%c | h = quit | o = options | wasd = move | q/e = look\n> "
+				, thermo.posX, thermo.posY, thermo.theta * (180/PI), 248 // Degree symbol
+			);
+			
+			// Get input
+			scanf(" %c", &input);
+			switch(input)
 			{
-				thermo.posX += speedMov * cos(thermo.theta);
-				thermo.posY += speedMov * sin(thermo.theta);
-				break;
+				case 'h': { break; } // Will break out of while loop
+				case 'w':
+				{
+					thermo.posX += speedMov * cos(thermo.theta);
+					thermo.posY += speedMov * sin(thermo.theta);
+					break;
+				}
+				case 'a':
+				{
+					thermo.posX -= speedMov * sin(thermo.theta);
+					thermo.posY += speedMov * cos(thermo.theta);
+					break;
+				}
+				case 's':
+				{
+					thermo.posX -= speedMov * cos(thermo.theta);
+					thermo.posY -= speedMov * sin(thermo.theta);
+					break;
+				}
+				case 'd':
+				{
+					thermo.posX += speedMov * sin(thermo.theta);
+					thermo.posY -= speedMov * cos(thermo.theta);
+					break;
+				}
+				case 'q': { thermo.theta += speedTurn; break; }
+				case 'e': { thermo.theta -= speedTurn; break; }
+				case 'o': { break; } // Will enter settings on next loop
+				default: { break; } // Nothing happens
 			}
-			case 'a':
-			{
-				thermo.posX -= speedMov * sin(thermo.theta);
-				thermo.posY += speedMov * cos(thermo.theta);
-				break;
-			}
-			case 's':
-			{
-				thermo.posX -= speedMov * cos(thermo.theta);
-				thermo.posY -= speedMov * sin(thermo.theta);
-				break;
-			}
-			case 'd':
-			{
-				thermo.posX += speedMov * sin(thermo.theta);
-				thermo.posY -= speedMov * cos(thermo.theta);
-				break;
-			}
-			case 'q': { thermo.theta += speedTurn; break; }
-			case 'e': { thermo.theta -= speedTurn; break; }
-			default: { break; }
 		}
 	}
 	

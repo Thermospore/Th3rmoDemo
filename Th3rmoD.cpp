@@ -23,13 +23,13 @@ struct map
 int main()
 {
 	// Set constants
-	int dispH = 23;
+	int dispH = 23; // H & W of display
 	int dispW = 79;
 	
 	float fov = 90 * (PI / 180); // Convert to radians
 	
-	float distColMax = 1.2;
-	float distColMin = 0.3;
+	float distColMax = 0.3; // Distance at which a column will fill the whole screen
+	float distColCurve = 0.2; // Affects strength of curve concavity. Range: (0,1)
 	
 	float speedMov = 0.1;
 	float speedTurn = 10 * (PI/180);
@@ -138,7 +138,7 @@ int main()
 			rayDist *= cos(thermo.theta - rayTheta);
 			
 			// Calculate column height
-			float colH = (distColMax - rayDist) * (dispH / (distColMax - distColMin));
+			float colH = pow(distColCurve, rayDist - distColMax) * dispH;
 			
 			// Store to screen buffer
 			for (int y = 0; y < dispH; y++)
@@ -156,9 +156,15 @@ int main()
 				{
 					screenBuffer[y][r] = texFloor;
 				}
-				else // Ceiling
+				else if ( // Ceiling
+					y < (dispH - colH) / 2
+				)
 				{
 					screenBuffer[y][r] = texCeiling;
+				}
+				else // Unknown case
+				{
+					screenBuffer[y][r] = '?';
 				}
 			}
 			

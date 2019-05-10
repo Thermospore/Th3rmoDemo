@@ -30,6 +30,7 @@ int main()
 	
 	float distColMax = 0.3; // Distance at which a column will fill the whole screen
 	float distColCurve = 0.2; // Affects strength of curve concavity. Range: (0,1)
+	float distRend = 3; // Walls cut off at this distance
 	
 	float speedMov = 0.1;
 	float speedTurn = 10 * (PI/180);
@@ -152,10 +153,17 @@ int main()
 			{
 				if ( // Wall
 					y > (dispH - colH) / 2
-					&& y < colH + (dispH - colH) / 2
+					&& y <= colH + (dispH - colH) / 2
 				)
 				{ 
-					screenBuffer[y][r] = rayTex;
+					if (rayDist > distRend) // Cut off wall after certain distance
+					{
+						screenBuffer[y][r] = texCeiling;
+					}
+					else
+					{
+						screenBuffer[y][r] = rayTex;
+					}
 				}
 				else if ( // Floor
 					y > colH + (dispH - colH) / 2
@@ -164,7 +172,7 @@ int main()
 					screenBuffer[y][r] = texFloor;
 				}
 				else if ( // Ceiling
-					y < (dispH - colH) / 2
+					y <= (dispH - colH) / 2
 				)
 				{
 					screenBuffer[y][r] = texCeiling;

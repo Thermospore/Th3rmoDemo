@@ -34,7 +34,8 @@ int main()
 	float speedMov = 0.1;
 	float speedTurn = 10 * (PI/180);
 	
-	char texWall    = '#';
+	char texWallLR  = '#';
+	char texWallFB  = 'L';
 	char texCeiling = ' ';
 	char texFloor   = '.';
 	char texTran    = '_';
@@ -44,10 +45,10 @@ int main()
 	char texTranCcd = '^';
 	
 	// Initialize screen buffer
-	char screenBuffer[dispH][dispW];
+	char screenBuffer[dispH+1][dispW]; // Using last row to store wall tex
 	for (int x = 0; x < dispW; x++)
 	{
-		for (int y = 0; y < dispH; y++)
+		for (int y = 0; y < dispH + 1; y++)
 		{
 			screenBuffer[y][x] = ' ';
 		}
@@ -109,6 +110,7 @@ int main()
 			}
 			
 			// Find ray length from player to wall
+			char rayTex = ' ';
 			float rayDist = 0;
 			if ( // Right wall
 				rayTheta <= atan((1 - thermo.posY) / (1 - thermo.posX))
@@ -116,22 +118,26 @@ int main()
 			)
 			{
 				rayDist = (1 - thermo.posX) / cos(rayTheta);
+				rayTex = texWallLR;
 			}
-			else if ( // Upper wall
+			else if ( // Forward wall
 				rayTheta <= PI - atan((1 - thermo.posY) / (thermo.posX))
 			)
 			{
 				rayDist = (1 - thermo.posY) / sin(rayTheta);
+				rayTex = texWallFB;
 			}
 			else if( // Left Wall
 				rayTheta <= PI + atan((thermo.posY) / (thermo.posX))
 			)
 			{
 				rayDist = (-thermo.posX) / cos(rayTheta);
+				rayTex = texWallLR;
 			}
-			else // Rear Wall
+			else // Back Wall
 			{
 				rayDist = (-thermo.posY) / sin(rayTheta);
+				rayTex = texWallFB;
 			}
 			
 			// Adjust ray for aberration?
@@ -141,6 +147,7 @@ int main()
 			float colH = pow(distColCurve, rayDist - distColMax) * dispH;
 			
 			// Store to screen buffer
+			screenBuffer[dispH][r] = rayTex; // Note wall texture for edge function
 			for (int y = 0; y < dispH; y++)
 			{
 				if ( // Wall
@@ -148,7 +155,7 @@ int main()
 					&& y < colH + (dispH - colH) / 2
 				)
 				{ 
-					screenBuffer[y][r] = texWall;
+					screenBuffer[y][r] = rayTex;
 				}
 				else if ( // Floor
 					y > colH + (dispH - colH) / 2
@@ -175,6 +182,23 @@ int main()
 		// Draw edges
 		for (int x = 0; x < dispW; x++)
 		{
+			// Wall tex for this column
+			char texWall = screenBuffer[dispH][x];
+			
+			// Wall tex left column
+			char texWallL = texWall;
+			if (x >= 1)
+			{
+				texWallL = screenBuffer[dispH][x-1];
+			}
+			
+			// Wall tex right column
+			char texWallR = texWall;
+			if (x <= dispW - 2) // Don't go out of bounds
+			{
+				texWallR = screenBuffer[dispH][x+1];
+			}
+			
 			for (int y = 0; y < dispH; y++)
 			{
 				if ( // Ceiling trans
@@ -191,20 +215,20 @@ int main()
 						screenBuffer[y][x] = texTran;
 					}
 					else if ( // Concave up trans
-						screenBuffer[y][x-1] == texWall
-						&& screenBuffer[y][x+1] == texWall
+						screenBuffer[y][x-1] == texWallL
+						&& screenBuffer[y][x+1] == texWallR
 					)
 					{
 						screenBuffer[y][x] = texTranCcu;
 					}
 					else if ( // Neg trans
-						screenBuffer[y][x-1] == texWall
+						screenBuffer[y][x-1] == texWallL
 					)
 					{
 						screenBuffer[y][x] = texTranNeg;
 					}
 					else if ( // Pos trans
-						screenBuffer[y][x+1] == texWall
+						screenBuffer[y][x+1] == texWallR
 					)
 					{
 						screenBuffer[y][x] = texTranPos;
@@ -228,13 +252,13 @@ int main()
 						screenBuffer[y][x] = texTran;
 					}
 					else if ( // Pos trans
-						screenBuffer[y-1][x+1] != texWall
+						screenBuffer[y-1][x+1] != texWallR
 					)
 					{
 						screenBuffer[y][x] = texTranPos;
 					}
 					else if ( // Neg trans
-						screenBuffer[y-1][x-1] != texWall
+						screenBuffer[y-1][x-1] != texWallL
 					)
 					{
 						screenBuffer[y][x] = texTranNeg;

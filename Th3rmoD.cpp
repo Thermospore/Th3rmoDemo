@@ -259,6 +259,16 @@ int main()
 					{
 						screenBuffer[y][x] = texTran;
 					}
+					else if (
+						screenBuffer[y-1][x+1] != texWallR
+						&& (
+							screenBuffer[y-1][x-1] == texTran
+							|| screenBuffer[y-1][x-1] == texTranNeg
+						)
+					)
+					{
+						screenBuffer[y][x] = texTranCcu;
+					}
 					else if ( // Pos trans
 						screenBuffer[y-1][x+1] != texWallR
 					)

@@ -23,8 +23,8 @@ struct map
 int main()
 {
 	// Set constants
-	int dispH = 23; // H & W of display
-	int dispW = 79;
+	int dispH = 23*2; // H & W of display
+	int dispW = 79*2;
 	
 	float fov = 90 * (PI / 180); // Convert to radians
 	
@@ -46,12 +46,12 @@ int main()
 	char texTranCcd = '^';
 	
 	// Initialize screen buffer
-	char screenBuffer[dispH+1][dispW]; // Using last row to store wall tex
+	char frameBuf[dispH+1][dispW]; // Using last row to store wall tex
 	for (int x = 0; x < dispW; x++)
 	{
 		for (int y = 0; y < dispH + 1; y++)
 		{
-			screenBuffer[y][x] = ' ';
+			frameBuf[y][x] = ' ';
 		}
 	}
 	
@@ -148,7 +148,7 @@ int main()
 			float colH = pow(distColCurve, rayDist - distColMax) * dispH;
 			
 			// Store to screen buffer
-			screenBuffer[dispH][r] = rayTex; // Note wall texture for edge function
+			frameBuf[dispH][r] = rayTex; // Note wall texture for edge function
 			for (int y = 0; y < dispH; y++)
 			{
 				if ( // Wall
@@ -158,28 +158,28 @@ int main()
 				{ 
 					if (rayDist > distRend) // Cut off wall after certain distance
 					{
-						screenBuffer[y][r] = texCeiling;
+						frameBuf[y][r] = texCeiling;
 					}
 					else
 					{
-						screenBuffer[y][r] = rayTex;
+						frameBuf[y][r] = rayTex;
 					}
 				}
 				else if ( // Floor
 					y > colH + (dispH - colH) / 2
 				)
 				{
-					screenBuffer[y][r] = texFloor;
+					frameBuf[y][r] = texFloor;
 				}
 				else if ( // Ceiling
 					y <= (dispH - colH) / 2
 				)
 				{
-					screenBuffer[y][r] = texCeiling;
+					frameBuf[y][r] = texCeiling;
 				}
 				else // Unknown case
 				{
-					screenBuffer[y][r] = '?';
+					frameBuf[y][r] = '?';
 				}
 			}
 			
@@ -191,28 +191,28 @@ int main()
 		for (int x = 0; x < dispW; x++)
 		{
 			// Wall tex for this column
-			char texWall = screenBuffer[dispH][x];
+			char texWall = frameBuf[dispH][x];
 			
 			// Wall tex left column
 			char texWallL = texWall;
 			if (x >= 1)
 			{
-				texWallL = screenBuffer[dispH][x-1];
+				texWallL = frameBuf[dispH][x-1];
 			}
 			
 			// Wall tex right column
 			char texWallR = texWall;
 			if (x <= dispW - 2) // Don't go out of bounds
 			{
-				texWallR = screenBuffer[dispH][x+1];
+				texWallR = frameBuf[dispH][x+1];
 			}
 			
 			for (int y = 0; y < dispH; y++)
 			{
 				if ( // Ceiling trans
-					screenBuffer[y][x] == texCeiling
+					frameBuf[y][x] == texCeiling
 					&& y + 1 < dispH
-					&& screenBuffer[y+1][x] == texWall
+					&& frameBuf[y+1][x] == texWall
 				)
 				{
 					if ( // Don't go out of bounds on array
@@ -220,36 +220,36 @@ int main()
 						|| x == dispW - 1
 					)
 					{
-						screenBuffer[y][x] = texTran;
+						frameBuf[y][x] = texTran;
 					}
 					else if ( // Concave up trans
-						screenBuffer[y][x-1] == texWallL
-						&& screenBuffer[y][x+1] == texWallR
+						frameBuf[y][x-1] == texWallL
+						&& frameBuf[y][x+1] == texWallR
 					)
 					{
-						screenBuffer[y][x] = texTranCcu;
+						frameBuf[y][x] = texTranCcu;
 					}
 					else if ( // Neg trans
-						screenBuffer[y][x-1] == texWallL
+						frameBuf[y][x-1] == texWallL
 					)
 					{
-						screenBuffer[y][x] = texTranNeg;
+						frameBuf[y][x] = texTranNeg;
 					}
 					else if ( // Pos trans
-						screenBuffer[y][x+1] == texWallR
+						frameBuf[y][x+1] == texWallR
 					)
 					{
-						screenBuffer[y][x] = texTranPos;
+						frameBuf[y][x] = texTranPos;
 					}
 					else // Normal case
 					{
-						screenBuffer[y][x] = texTran;
+						frameBuf[y][x] = texTran;
 					}
 				}
 				if ( // Floor trans
-					screenBuffer[y][x] == texFloor
+					frameBuf[y][x] == texFloor
 					&& y - 1 >= 0
-					&& screenBuffer[y-1][x] == texWall
+					&& frameBuf[y-1][x] == texWall
 				)
 				{
 					if ( // Don't go out of bounds on array
@@ -257,48 +257,56 @@ int main()
 						|| x == dispW - 1
 					)
 					{
-						screenBuffer[y][x] = texTran;
+						frameBuf[y][x] = texTran;
 					}
 					else if (
-						screenBuffer[y-1][x+1] != texWallR
+						frameBuf[y-1][x+1] != texWallR
 						&& (
-							screenBuffer[y-1][x-1] == texTran
-							|| screenBuffer[y-1][x-1] == texTranNeg
+							frameBuf[y-1][x-1] == texTran
+							|| frameBuf[y-1][x-1] == texTranNeg
 						)
 					)
 					{
-						screenBuffer[y][x] = texTranCcu;
+						frameBuf[y][x] = texTranCcu;
 					}
 					else if ( // Pos trans
-						screenBuffer[y-1][x+1] != texWallR
+						frameBuf[y-1][x+1] != texWallR
 					)
 					{
-						screenBuffer[y][x] = texTranPos;
+						frameBuf[y][x] = texTranPos;
 					}
 					else if ( // Neg trans
-						screenBuffer[y-1][x-1] != texWallL
+						frameBuf[y-1][x-1] != texWallL
 					)
 					{
-						screenBuffer[y][x] = texTranNeg;
+						frameBuf[y][x] = texTranNeg;
 					}
 					else // Normal case
 					{
-						screenBuffer[y][x] = texTran;
+						frameBuf[y][x] = texTran;
 					}
 				}
 			}
 		}
 		
 		// Display buffer
-		system("cls");
+		int printBufSize = ((dispW + 1) * dispH) + 1; // ((Line + \n) * #lines) + \0
+		char printBuf[printBufSize];
+		
 		for (int y = 0; y < dispH; y++)
 		{
+			int lineOffset = y * (dispW + 1);
+			
 			for (int x = 0; x < dispW; x++)
 			{
-				printf("%c", screenBuffer[y][x]);
+				printBuf[x + lineOffset] = frameBuf[y][x];
 			}
-			printf("\n");
+			
+			printBuf[dispW + lineOffset] = '\n';
 		}
+		
+		system("cls");
+		printf("%s", printBuf); // Only use one printf. Much faster!
 		
 		// UI
 		if (input == 'o') // Options menu

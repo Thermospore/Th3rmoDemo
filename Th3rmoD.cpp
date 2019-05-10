@@ -21,11 +21,39 @@ struct map
 	float startTheta; // Radians
 };
 
+// Takes a theta value and gives you the direction of north
+char northArrow(float theta)
+{
+	theta *= 180/PI; // Convert to degrees
+	
+	// Find octant
+	int octant = 0;
+	for (; theta-22.5 > 0; octant++) { theta -= 45; }
+	
+	// Convert octant to char
+	char arrow;
+	switch(octant)
+	{                                    // North is:
+		case 0:  { arrow =  27; break; } // L
+		case 1:  { arrow = 201; break; } // UL
+		case 2:  { arrow =  24; break; } // U
+		case 3:  { arrow = 187; break; } // UR
+		case 4:  { arrow =  26; break; } // R
+		case 5:  { arrow = 188; break; } // DR
+		case 6:  { arrow =  25; break; } // D
+		case 7:  { arrow = 200; break; } // DL
+		case 8:  { arrow =  27; break; } // L
+		default: { arrow = '?'; break; } // ?
+	}
+	
+	return arrow;
+}
+
 int main()
 {
 	// Set constants
-	int dispH = 23*2; // H & W of display
-	int dispW = 79*2;
+	int dispH = 23; // H & W of display
+	int dispW = 79;
 	
 	float fov = 90 * (PI / 180); // Convert to radians
 	
@@ -136,7 +164,7 @@ int main()
 			// Calculate column height
 			float colH = pow(distColCurve, rayDist - distColMax) * dispH;
 			
-			// Store to screen buffer
+			// Store to frame buffer
 			frameBuf[dispH][r] = rayTex; // Note wall texture for edge function
 			for (int y = 0; y < dispH; y++)
 			{
@@ -297,7 +325,6 @@ int main()
 		system("cls");
 		printf("%s", printBuf); // Only use one printf. Much faster!
 		
-		
 		// Debug
 		/*printf(
 			"A:%5.1f | B:%5.1f | C:%5.1f | D:%5.1f\n"
@@ -308,25 +335,36 @@ int main()
 		);*/
 		
 		// UI
-		if (input == 'o') // Options menu
+		if (input == 'm') // Options menu
 		{
-			printf
-			(
-				"b = back | \n> "
-				, thermo.posX, thermo.posY, thermo.theta * (180/PI), 248 // Degree symbol
-			);
+			// Status Bar
+			printf("b = back | unimplemented\n> ");
 			
 			// Get input
 			input = getch();
 			switch(input)
-			case 'b': { break; } // Return to main menu
+			{
+				case 'b': { break; } // Return to main screen
+			}
+		}
+		else if (input == 'c') // Controls
+		{
+			// Status Bar
+			printf("h = halt (quit) | wasd = movement | q/e = look\n> ");
+			
+			// Get input
+			input = ' '; // Prevents you from getting stuck in controls menu
+			system("pause");
 		}
 		else // Main menu
 		{
+			// Status bar
 			printf
 			(
-				"pos:(%1.2f, %1.2f) theta:%3.0f%c | h = quit | o = options | wasd = move | q/e = look\n> "
-				, thermo.posX, thermo.posY, thermo.theta * (180/PI), 248 // Degree symbol
+				"pos:(%5.2f,%5.2f) | theta:%3.0f%c | N:%c | m = menu | c = controls\n> "
+				, thermo.posX, thermo.posY
+				, thermo.theta * (180/PI), 248 // Degree symbol
+				, northArrow(thermo.theta)
 			);
 			
 			// Get input
@@ -360,7 +398,8 @@ int main()
 				}
 				case 'q': { thermo.theta += speedTurn; break; }
 				case 'e': { thermo.theta -= speedTurn; break; }
-				case 'o': { break; } // Will enter settings on next loop
+				case 'm': { break; } // Will enter menu
+				case 'c': { break; } // Will show controls
 				default: { break; } // Nothing happens
 			}
 		}

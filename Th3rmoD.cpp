@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <cstdlib>
+#include <conio.h>
 #define PI 3.14159265
 
 struct player
@@ -100,7 +101,7 @@ int main()
 			// Find angle of ray
 			float rayTheta = startTheta - (spacing / 2) - (spacing * r);
 			
-			// Loop rayTheta back around
+			// Wrap rayTheta
 			if (rayTheta >= 2*PI)
 			{
 				rayTheta -= 2*PI;
@@ -318,7 +319,7 @@ int main()
 			);
 			
 			// Get input
-			scanf(" %c", &input);
+			input = getch();
 			switch(input)
 			case 'b': { break; } // Return to main menu
 		}
@@ -331,7 +332,7 @@ int main()
 			);
 			
 			// Get input
-			scanf(" %c", &input);
+			input = getch();
 			switch(input)
 			{
 				case 'h': { break; } // Will break out of while loop

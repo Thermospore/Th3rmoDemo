@@ -84,14 +84,8 @@ int main()
 	while (input != 'h')
 	{
 		// Wrap player theta
-		if (thermo.theta >= 2*PI)
-		{
-			thermo.theta -= 2*PI;
-		}
-		else if (thermo.theta < 0)
-		{
-			thermo.theta += 2*PI;
-		}
+		if (thermo.theta >= 2*PI) { thermo.theta -= 2*PI; }
+		else if (thermo.theta < 0) { thermo.theta += 2*PI; }
 		
 		// Loop for each ray
 		float spacing = fov / dispW;
@@ -102,28 +96,22 @@ int main()
 			float rayTheta = startTheta - (spacing / 2) - (spacing * r);
 			
 			// Wrap rayTheta
-			if (rayTheta >= 2*PI)
-			{
-				rayTheta -= 2*PI;
-			}
-			else if (rayTheta < 0)
-			{
-				rayTheta += 2*PI;
-			}
-			
+			if (rayTheta >= 2*PI) { rayTheta -= 2*PI; }
+			else if (rayTheta < 0) { rayTheta += 2*PI; }
+						
 			// Find ray length from player to wall
 			char rayTex = ' ';
 			float rayDist = 0;
 			if ( // Right wall
 				rayTheta <= atan((1 - thermo.posY) / (1 - thermo.posX))
-				|| rayTheta >= 2*PI - atan((1 - thermo.posY) / (thermo.posX))
+				|| rayTheta > (3.0/2.0)*PI + atan((1 - thermo.posX) / (thermo.posY))
 			)
 			{
 				rayDist = (1 - thermo.posX) / cos(rayTheta);
 				rayTex = texWallLR;
 			}
 			else if ( // Forward wall
-				rayTheta <= PI - atan((1 - thermo.posY) / (thermo.posX))
+				rayTheta <= PI/2 + atan((thermo.posX) / (1 - thermo.posY))
 			)
 			{
 				rayDist = (1 - thermo.posY) / sin(rayTheta);
@@ -308,6 +296,16 @@ int main()
 		
 		system("cls");
 		printf("%s", printBuf); // Only use one printf. Much faster!
+		
+		
+		// Debug
+		/*printf(
+			"A:%5.1f | B:%5.1f | C:%5.1f | D:%5.1f\n"
+			, (atan((1 - thermo.posY) / (1 - thermo.posX)))*(180/PI)
+			, (PI/2 + atan((thermo.posX) / (1 - thermo.posY)))*(180/PI)
+			, (PI + atan((thermo.posY) / (thermo.posX)))*(180/PI)
+			, ( (3.0/2.0)*PI + atan((1 - thermo.posX) / (thermo.posY)) )*(180/PI)
+		);*/
 		
 		// UI
 		if (input == 'o') // Options menu

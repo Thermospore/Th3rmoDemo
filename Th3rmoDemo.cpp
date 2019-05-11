@@ -54,7 +54,8 @@ struct texturePack
 // Takes a theta value and gives you the direction of north
 char northArrow(float theta)
 {
-	theta *= 180/PI; // Convert to degrees
+	// Convert to degrees
+	theta *= 180/PI;
 	
 	// Find octant
 	int octant = 0;
@@ -88,7 +89,7 @@ int main()
 		, 79  // w
 		, 90 * (PI/180) // fov
 		, 0.3 // colDistMax
-		, 3   // colDistRend
+		, 3.0 // colDistRend
 		, 0.2 // colDistCurve
 	};
 	

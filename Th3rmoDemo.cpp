@@ -36,6 +36,7 @@ struct texturePack
 	char TranPos;
 	char TranCcu;
 	char TranCcd;
+	char TranWall;
 };
 
 // Takes a theta value and gives you the direction of north
@@ -92,7 +93,7 @@ int main()
 	struct texturePack tex =
 	{
 		  '#'  //WallLR
-		, 'L'  //WallFB
+		, '7'  //WallFB
 		, ' '  //Ceiling
 		, '.'  //Floor
 		, '_'  //Tran
@@ -100,6 +101,7 @@ int main()
 		, '/'  //TranPos
 		, 'V'  //TranCcu
 		, '^'  //TranCcd
+		, 'L'  //TranWall
 	};
 	
 	// Define map
@@ -295,7 +297,7 @@ int main()
 					{
 						frameBuf[y][x] = tex.Tran;
 					}
-					else if (
+					else if ( // Concave up
 						frameBuf[y-1][x+1] != colTexWallR
 						&& (
 							frameBuf[y-1][x-1] == tex.Tran
@@ -319,7 +321,14 @@ int main()
 					}
 					else // Normal case
 					{
-						frameBuf[y][x] = tex.Tran;
+						if (colTexWallL != colTexWall)
+						{
+							frameBuf[y][x] = tex.TranWall;
+						}
+						else
+						{
+							frameBuf[y][x] = tex.Tran;
+						}
 					}
 				}
 			}

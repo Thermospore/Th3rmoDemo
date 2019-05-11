@@ -5,14 +5,16 @@
 
 #define PI 3.14159265
 
-struct player
+struct engineSettings
 {
-	float x;
-	float y;
-	float theta; // Radians
+	int h;
+	int w;
 	
-	float speedMov;
-	float speedTurn;
+	float fov; // Radians
+	
+	float colDistMax;   // Distance at which a column will fill the whole screen
+	float colDistRend;  // Walls cut off at this distance
+	float colDistCurve; // Affects strength of curve concavity. Range: (0,1)
 };
 
 struct map
@@ -23,6 +25,16 @@ struct map
 	float startX;
 	float startY;
 	float startTheta; // Radians
+};
+
+struct player
+{
+	float x;
+	float y;
+	float theta; // Radians
+	
+	float speedMov;
+	float speedTurn;
 };
 
 struct texturePack
@@ -69,39 +81,15 @@ char northArrow(float theta)
 
 int main()
 {
-	// Set constants
-	int dispH = 23; // H & W of display
-	int dispW = 79;
-	
-	float fov = 90 * (PI / 180); // Convert to radians
-	
-	float distColMax = 0.3; // Distance at which a column will fill the whole screen
-	float distColCurve = 0.2; // Affects strength of curve concavity. Range: (0,1)
-	float distRend = 3; // Walls cut off at this distance
-	
-	// Initialize screen buffer
-	char frameBuf[dispH + 1][dispW]; // Using last row to store wall tex
-	for (int x = 0; x < dispW; x++)
+	// Initialize engine settings
+	struct engineSettings eng = 
 	{
-		for (int y = 0; y < dispH + 1; y++)
-		{
-			frameBuf[y][x] = ' ';
-		}
-	}
-	
-	// Set texture pack
-	struct texturePack tex =
-	{
-		  '#'  //WallLR
-		, '7'  //WallFB
-		, ' '  //Ceiling
-		, '.'  //Floor
-		, '_'  //Tran
-		, '\\' //TranNeg
-		, '/'  //TranPos
-		, 'V'  //TranCcu
-		, '^'  //TranCcd
-		, 'L'  //TranWall
+		  23  // h
+		, 79  // w
+		, 90 * (PI/180) // fov
+		, 0.3 // colDistMax
+		, 3   // colDistRend
+		, 0.2 // colDistCurve
 	};
 	
 	// Define map
@@ -118,10 +106,10 @@ int main()
 			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
 			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
 			{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-		},
-		0.2, // startX
-		0.3, // startY
-		50 * (PI/180), // startTheta
+		}
+		, 0.2 // startX
+		, 0.3 // startY
+		, 50 * (PI/180) // startTheta
 	};
 	
 	// Place player in map and set attributes
@@ -132,52 +120,77 @@ int main()
 		, 10 * (PI/180) // speedTurn
 	};
 	
+	// Set texture pack
+	struct texturePack tex =
+	{
+		  '#'  //WallLR
+		, '7'  //WallFB
+		, ' '  //Ceiling
+		, '.'  //Floor
+		, '_'  //Tran
+		, '\\' //TranNeg
+		, '/'  //TranPos
+		, 'V'  //TranCcu
+		, '^'  //TranCcd
+		, 'L'  //TranWall
+	};
+	
+	// Initialize screen buffer
+	char frameBuf[eng.h + 1][eng.w]; // Using last row to store wall tex
+	for (int x = 0; x < eng.w; x++)
+	{
+		for (int y = 0; y < eng.h + 1; y++)
+		{
+			frameBuf[y][x] = ' ';
+		}
+	}
+	
 	// Loop per frame
 	char input = '\0';
 	while (input != 'h')
 	{
 		// Wrap player theta
-		if (plr.theta >= 2*PI) { plr.theta -= 2*PI; }
+		if (plr.theta >= 2*PI)  { plr.theta -= 2*PI; }
 		else if (plr.theta < 0) { plr.theta += 2*PI; }
 		
 		// Loop for each ray
-		float spacing = fov / dispW;
-		float startTheta = plr.theta + (fov / 2);
-		for(int r = 0; r < dispW; r++)
+		float spacing = eng.fov / eng.w;
+		float startTheta = plr.theta + (eng.fov / 2);
+		for(int r = 0; r < eng.w; r++)
 		{
 			// Find angle of ray
 			float rayTheta = startTheta - (spacing / 2) - (spacing * r);
 			
 			// Wrap rayTheta
-			if (rayTheta >= 2*PI) { rayTheta -= 2*PI; }
+			if (rayTheta >= 2*PI)  { rayTheta -= 2*PI; }
 			else if (rayTheta < 0) { rayTheta += 2*PI; }
 						
 			// Find ray length from player to wall
 			char rayTex = ' ';
 			float rayDist = 0;
-			if ( // Right wall
-				rayTheta <= atan((1 - plr.y) / (1 - plr.x))
-				|| rayTheta > (3.0/2.0)*PI + atan((1 - plr.x) / (plr.y))
+			// Right wall
+			if (
+				   rayTheta <= atan((1 - plr.y) / (1 - plr.x))
+				|| rayTheta >  atan((1 - plr.x) / (    plr.y)) + (3.0/2.0)*PI
 			)
 			{
 				rayDist = (1 - plr.x) / cos(rayTheta);
 				rayTex = tex.WallLR;
 			}
-			else if ( // Forward wall
-				rayTheta <= PI/2 + atan((plr.x) / (1 - plr.y))
-			)
+			// Forward wall
+			else if ( rayTheta <= atan((plr.x) / (1 - plr.y)) + PI/2 )
 			{
 				rayDist = (1 - plr.y) / sin(rayTheta);
 				rayTex = tex.WallFB;
 			}
-			else if( // Left Wall
-				rayTheta <= PI + atan((plr.y) / (plr.x))
-			)
+			// Left Wall
+			else if ( rayTheta <= atan((plr.y) / (    plr.x)) + PI )
 			{
 				rayDist = (-plr.x) / cos(rayTheta);
 				rayTex = tex.WallLR;
 			}
-			else // Back Wall
+			// Back Wall
+			else
 			{
 				rayDist = (-plr.y) / sin(rayTheta);
 				rayTex = tex.WallFB;
@@ -187,183 +200,171 @@ int main()
 			rayDist *= cos(plr.theta - rayTheta);
 			
 			// Calculate column height
-			float colH = pow(distColCurve, rayDist - distColMax) * dispH;
+			float colH = pow(eng.colDistCurve, rayDist - eng.colDistMax) * eng.h;
 			
 			// Store to frame buffer
-			frameBuf[dispH][r] = rayTex; // Note wall texture for edge function
-			for (int y = 0; y < dispH; y++)
+			frameBuf[eng.h][r] = rayTex; // Note wall texture for edge function
+			for (int y = 0; y < eng.h; y++)
 			{
-				if ( // Wall
-					y > (dispH - colH) / 2
-					&& y <= colH + (dispH - colH) / 2
+				// Wall
+				if (
+					   y >  (eng.h - colH) / 2
+					&& y <= (eng.h - colH) / 2 + colH
 				)
-				{ 
-					if (rayDist > distRend) // Cut off wall after certain distance
-					{
-						frameBuf[y][r] = tex.Ceiling;
-					}
+				{
+					// Render distance
+					if (rayDist > eng.colDistRend)
+					{ frameBuf[y][r] = tex.Ceiling; }
 					else
-					{
-						frameBuf[y][r] = rayTex;
-					}
+					{ frameBuf[y][r] = rayTex; }
 				}
-				else if ( // Floor
-					y > colH + (dispH - colH) / 2
-				)
+				// Floor
+				else if ( y >  (eng.h - colH) / 2 + colH )
 				{
 					frameBuf[y][r] = tex.Floor;
 				}
-				else if ( // Ceiling
-					y <= (dispH - colH) / 2
-				)
+				// Ceiling
+				else if ( y <= (eng.h - colH) / 2 )
 				{
 					frameBuf[y][r] = tex.Ceiling;
 				}
-				else // Unknown case
+				// Unknown case
+				else
 				{
 					frameBuf[y][r] = '?';
 				}
 			}
-			
-			// Print ray info
-			//printf("r%2d: Th: %8f dR %9f cH%5.2f\n", r, rayTheta, rayDist, colH);
 		}
 		
 		// Draw edges
-		for (int x = 0; x < dispW; x++)
+		for (int x = 0; x < eng.w; x++)
 		{
 			// Wall tex for this column
-			char colTexWall = frameBuf[dispH][x];
+			char colTex = frameBuf[eng.h][x];
 			
 			// Wall tex left column
-			char colTexWallL = colTexWall;
-			if (x >= 1)
-			{ colTexWallL = frameBuf[dispH][x-1]; }
+			char colTexL = colTex;
+			if (x >= 1) // OOB prevention
+			{ colTexL = frameBuf[eng.h][x-1]; }
 			
 			// Wall tex right column
-			char colTexWallR = colTexWall;
-			if (x <= dispW - 2) // Don't go out of bounds
-			{ colTexWallR = frameBuf[dispH][x+1]; }
+			char colTexR = colTex;
+			if (x <= eng.w - 2) // OOB prevention
+			{ colTexR = frameBuf[eng.h][x+1]; }
 			
-			for (int y = 0; y < dispH; y++)
+			for (int y = 0; y < eng.h; y++)
 			{
-				if ( // Ceiling trans
-					frameBuf[y][x] == tex.Ceiling
-					&& y + 1 < dispH
-					&& frameBuf[y+1][x] == colTexWall
+				// Ceiling trans
+				if (
+					   frameBuf[y  ][x  ] == tex.Ceiling
+					&& y + 1 < eng.h // OOB prevention
+					&& frameBuf[y+1][x  ] == colTex
 				)
 				{
-					if ( // Don't go out of bounds on array
-						x == 0
-						|| x == dispW - 1
+					// OOB prevention
+					if (
+						   x == 0
+						|| x == eng.w - 1
 					)
 					{
 						frameBuf[y][x] = tex.Tran;
 					}
-					else if ( // Concave up trans
-						frameBuf[y][x-1] == colTexWallL
-						&& frameBuf[y][x+1] == colTexWallR
+					// Concave up trans
+					else if (
+						   frameBuf[y  ][x-1] == colTexL
+						&& frameBuf[y  ][x+1] == colTexR
 					)
 					{
 						frameBuf[y][x] = tex.TranCcu;
 					}
-					else if ( // Neg trans
-						frameBuf[y][x-1] == colTexWallL
-					)
+					// Neg trans
+					else if (frameBuf[y  ][x-1] == colTexL)
 					{
 						frameBuf[y][x] = tex.TranNeg;
 					}
-					else if ( // Pos trans
-						frameBuf[y][x+1] == colTexWallR
-					)
+					// Pos trans
+					else if (frameBuf[y  ][x+1] == colTexR)
 					{
 						frameBuf[y][x] = tex.TranPos;
 					}
-					else // Normal case
+					// Normal case
+					else
 					{
 						frameBuf[y][x] = tex.Tran;
 					}
 				}
-				if ( // Floor trans
-					frameBuf[y][x] == tex.Floor
-					&& y - 1 >= 0
-					&& frameBuf[y-1][x] == colTexWall
+				// Floor trans
+				else if (
+					   frameBuf[y  ][x  ] == tex.Floor
+					&& y - 1 >= 0 // OOB prevention
+					&& frameBuf[y-1][x  ] == colTex
 				)
 				{
-					if ( // Don't go out of bounds on array
-						x == 0
-						|| x == dispW - 1
+					// OOB prevention
+					if (
+						   x == 0
+						|| x == eng.w - 1
 					)
 					{
 						frameBuf[y][x] = tex.Tran;
 					}
-					else if ( // Concave up
-						frameBuf[y-1][x+1] != colTexWallR
+					// Concave up
+					else if (
+						frameBuf[y-1][x+1] != colTexR
 						&& (
-							frameBuf[y-1][x-1] == tex.Tran
+							   frameBuf[y-1][x-1] == tex.Tran
 							|| frameBuf[y-1][x-1] == tex.TranNeg
 						)
 					)
 					{
 						frameBuf[y][x] = tex.TranCcu;
 					}
-					else if ( // Pos trans
-						frameBuf[y-1][x+1] != colTexWallR
-					)
+					// Pos trans
+					else if (frameBuf[y-1][x+1] != colTexR)
 					{
 						frameBuf[y][x] = tex.TranPos;
 					}
-					else if ( // Neg trans
-						frameBuf[y-1][x-1] != colTexWallL
-					)
+					// Neg trans
+					else if (frameBuf[y-1][x-1] != colTexL)
 					{
 						frameBuf[y][x] = tex.TranNeg;
 					}
-					else // Normal case
+					// Normal case
+					else
 					{
-						if (colTexWallL != colTexWall)
-						{
-							frameBuf[y][x] = tex.TranWall;
-						}
+						// Baseboard wall transition
+						if (colTexL != colTex)
+						{ frameBuf[y][x] = tex.TranWall; }
 						else
-						{
-							frameBuf[y][x] = tex.Tran;
-						}
+						{ frameBuf[y][x] = tex.Tran; }
 					}
 				}
 			}
 		}
 		
-		// Display buffer
-		int printBufSize = ((dispW + 1) * dispH) + 1; // ((Line + \n) * #lines) + \0
+		// Pile frame buffer into a single string
+		//                 ((Line + \n) * #lines) + \0
+		int printBufSize = ((eng.w + 1) * eng.h) + 1;
 		char printBuf[printBufSize];
-		
-		for (int y = 0; y < dispH; y++)
+		for (int y = 0; y < eng.h; y++)
 		{
-			int lineOffset = y * (dispW + 1);
+			int lineOffset = y * (eng.w + 1);
 			
-			for (int x = 0; x < dispW; x++)
+			for (int x = 0; x < eng.w; x++)
 			{
 				printBuf[x + lineOffset] = frameBuf[y][x];
 			}
 			
-			printBuf[dispW + lineOffset] = '\n';
+			printBuf[eng.w + lineOffset] = '\n';
 		}
 		
+		// Print frame. Only uses one printf. Much faster!
 		system("cls");
-		printf("%s", printBuf); // Only use one printf. Much faster!
-		
-		// Debug
-		/*printf(
-			"A:%5.1f | B:%5.1f | C:%5.1f | D:%5.1f\n"
-			, (atan((1 - plr.y) / (1 - plr.x)))*(180/PI)
-			, (PI/2 + atan((plr.x) / (1 - plr.y)))*(180/PI)
-			, (PI + atan((plr.y) / (plr.x)))*(180/PI)
-			, ( (3.0/2.0)*PI + atan((1 - plr.x) / (plr.y)) )*(180/PI)
-		);*/
+		printf("%s", printBuf);
 		
 		// UI
-		if (input == 'm') // Options menu
+		// Options menu
+		if (input == 'm')
 		{
 			// Status Bar
 			printf("b = back | unimplemented\n> ");
@@ -375,7 +376,8 @@ int main()
 				case 'b': { break; } // Return to main screen
 			}
 		}
-		else if (input == 'c') // Controls
+		// Controls
+		else if (input == 'c')
 		{
 			// Status Bar
 			printf("h = halt (quit) | wasd = movement | q/e = look\n> ");
@@ -384,7 +386,8 @@ int main()
 			input = ' '; // Prevents you from getting stuck in controls menu
 			system("pause");
 		}
-		else // Main menu
+		// Main menu
+		else
 		{
 			// Status bar
 			printf
@@ -428,7 +431,7 @@ int main()
 				case 'e': { plr.theta -= plr.speedTurn; break; }
 				case 'm': { break; } // Will enter menu
 				case 'c': { break; } // Will show controls
-				default: { break; } // Nothing happens
+				default: { break; }  // Nothing happens
 			}
 		}
 	}

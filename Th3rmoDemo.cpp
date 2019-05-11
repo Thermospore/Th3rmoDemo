@@ -155,12 +155,12 @@ int main()
 		else if (plr.theta < 0) { plr.theta += 2*PI; }
 		
 		// Loop for each ray
-		float spacing = eng.fov / eng.w;
-		float startTheta = plr.theta + (eng.fov / 2);
+		float raySpacing = eng.fov / eng.w;
+		float rayStartTheta = plr.theta + (eng.fov / 2);
 		for(int r = 0; r < eng.w; r++)
 		{
 			// Find angle of ray
-			float rayTheta = startTheta - (spacing / 2) - (spacing * r);
+			float rayTheta = rayStartTheta - (raySpacing / 2) - (raySpacing * r);
 			
 			// Wrap rayTheta
 			if (rayTheta >= 2*PI)  { rayTheta -= 2*PI; }

@@ -155,12 +155,40 @@ int main()
 		}
 	}
 	
+	// Declare pointer to log file (only used when dumping)
+	FILE* pLog;
+	
 	// Loop per frame
-	char input = '\0';
+	char input = ' ';
 	while (input != 'h')
 	{
 		// Wrap player theta
 		wrap(plr.theta);
+		
+		// If dumping, initiate log file
+		if (input == 'd')
+		{
+			// Create/erase log file (will close at UI dump scene)
+			pLog = fopen("log.csv", "w");
+			
+			// Engine info
+			fprintf(pLog, "eng.h,eng.w,eng.fov,\n");
+			fprintf(
+				pLog, "%d,%d,%f,\n,\n"
+				, eng.h, eng.w, eng.fov*(180/PI)
+			);
+			
+			// Player info
+			fprintf(pLog, "plr.x,plr.y,plr.theta,\n");
+			fprintf(
+				pLog, "%f,%f,%f,\n,\n"
+				, plr.x, plr.y, plr.theta*(180/PI)
+			);
+			
+			// Ray table header
+			fprintf(pLog, "Ray Table,\n");
+			fprintf(pLog, "#,theta,dist,colH,\n");
+		}
 		
 		// Loop for each ray
 		float raySpacing = eng.fov / eng.w;
@@ -241,6 +269,15 @@ int main()
 				{
 					frameBuf[y][r] = '?';
 				}
+			}
+			
+			// Dump rays to log, if desired
+			if (input == 'd')
+			{
+				fprintf(
+					pLog, "%d,%f,%f,%f,\n"
+					, r, rayTheta*(180/PI), rayDist, colH
+				);
 			}
 		}
 		
@@ -370,19 +407,48 @@ int main()
 		system("cls");
 		printf("%s", printBuf);
 		
-		// UI
+		// UI scenes
 		// Options menu
 		if (input == 'm')
 		{
 			// Status Bar
-			printf("b = back | unimplemented\n> ");
+			printf("b = back | d = dump\n> ");
 			
 			// Get input
 			input = getch();
 			switch(input)
 			{
 				case 'b': { break; } // Return to main screen
+				case 'd': {	break; } // Enter dump screen
+				default:
+				{
+					// Re-enter options menu
+					input = 'm';
+					break;
+				}
 			}
+			
+			// Clear input unless it's to change scenes
+			{
+				if (
+					   input != 'd'
+					&& input != 'm'
+				)
+				{ input = ' '; }
+			}
+		}
+		// Dump
+		else if (input == 'd')
+		{
+			// Status Bar
+			printf("Current scene rays dumped to `log.txt`\n> ");
+			
+			// Close dump pointer
+			fclose(pLog);
+			
+			// Get input
+			input = ' '; // Return to main scene
+			system("pause");
 		}
 		// Controls
 		else if (input == 'c')
@@ -391,10 +457,10 @@ int main()
 			printf("h = halt (quit) | wasd = movement | q/e = look\n> ");
 			
 			// Get input
-			input = ' '; // Prevents you from getting stuck in controls menu
+			input = ' '; // return to main scene
 			system("pause");
 		}
-		// Main menu
+		// Main scene
 		else
 		{
 			// Status bar
@@ -410,7 +476,6 @@ int main()
 			input = getch();
 			switch(input)
 			{
-				case 'h': { break; } // Will break out of while loop
 				case 'w':
 				{
 					plr.x += plr.speedMov * cos(plr.theta);
@@ -437,9 +502,20 @@ int main()
 				}
 				case 'q': { plr.theta += plr.speedTurn; break; }
 				case 'e': { plr.theta -= plr.speedTurn; break; }
-				case 'm': { break; } // Will enter menu
-				case 'c': { break; } // Will show controls
-				default: { break; }  // Nothing happens
+				default:  { break; }
+				case 'h': { break; } // Halt
+				case 'm': { break; } // Enter menu
+				case 'c': { break; } // Show controls
+			}
+			
+			// Clear input unless it's to change scenes
+			{
+				if (
+					   input != 'h'
+					&& input != 'm'
+					&& input != 'c'
+				)
+				{ input = ' '; }
 			}
 		}
 	}

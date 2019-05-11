@@ -80,10 +80,19 @@ char northArrow(float theta)
 	return arrow;
 }
 
+// Wraps theta values to [0, 2*PI)
+float wrap(float &theta)
+{
+	if (theta >= 2*PI)  { theta -= 2*PI; }
+	else if (theta < 0) { theta += 2*PI; }
+	
+	return theta;
+}
+
 int main()
 {
 	// Initialize engine settings
-	struct engineSettings eng = 
+	struct engineSettings eng =
 	{
 		  23  // h
 		, 79  // w
@@ -151,8 +160,7 @@ int main()
 	while (input != 'h')
 	{
 		// Wrap player theta
-		if (plr.theta >= 2*PI)  { plr.theta -= 2*PI; }
-		else if (plr.theta < 0) { plr.theta += 2*PI; }
+		wrap(plr.theta);
 		
 		// Loop for each ray
 		float raySpacing = eng.fov / eng.w;
@@ -163,8 +171,7 @@ int main()
 			float rayTheta = rayStartTheta - (raySpacing / 2) - (raySpacing * r);
 			
 			// Wrap rayTheta
-			if (rayTheta >= 2*PI)  { rayTheta -= 2*PI; }
-			else if (rayTheta < 0) { rayTheta += 2*PI; }
+			wrap(rayTheta);
 						
 			// Find ray length from player to wall
 			char rayTex = ' ';

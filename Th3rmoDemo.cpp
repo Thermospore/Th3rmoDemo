@@ -2,13 +2,17 @@
 #include <math.h>
 #include <cstdlib>
 #include <conio.h>
+
 #define PI 3.14159265
 
 struct player
 {
-	float posX;
-	float posY;
+	float x;
+	float y;
 	float theta; // Radians
+	
+	float speedMov;
+	float speedTurn;
 };
 
 struct map
@@ -19,6 +23,19 @@ struct map
 	float startX;
 	float startY;
 	float startTheta; // Radians
+};
+
+struct texturePack
+{
+	char WallLR;
+	char WallFB;
+	char Ceiling;
+	char Floor;
+	char Tran;
+	char TranNeg;
+	char TranPos;
+	char TranCcu;
+	char TranCcd;
 };
 
 // Takes a theta value and gives you the direction of north
@@ -33,7 +50,7 @@ char northArrow(float theta)
 	// Convert octant to char
 	char arrow;
 	switch(octant)
-	{                                    // North is:
+	{	                                 // North is:
 		case 0:  { arrow =  27; break; } // L
 		case 1:  { arrow = 201; break; } // UL
 		case 2:  { arrow =  24; break; } // U
@@ -61,21 +78,8 @@ int main()
 	float distColCurve = 0.2; // Affects strength of curve concavity. Range: (0,1)
 	float distRend = 3; // Walls cut off at this distance
 	
-	float speedMov = 0.1;
-	float speedTurn = 10 * (PI/180);
-	
-	char texWallLR  = '#';
-	char texWallFB  = 'L';
-	char texCeiling = ' ';
-	char texFloor   = '.';
-	char texTran    = '_';
-	char texTranNeg = '\\';
-	char texTranPos = '/';
-	char texTranCcu = 'V';
-	char texTranCcd = '^';
-	
 	// Initialize screen buffer
-	char frameBuf[dispH+1][dispW]; // Using last row to store wall tex
+	char frameBuf[dispH + 1][dispW]; // Using last row to store wall tex
 	for (int x = 0; x < dispW; x++)
 	{
 		for (int y = 0; y < dispH + 1; y++)
@@ -84,8 +88,22 @@ int main()
 		}
 	}
 	
+	// Set texture pack
+	struct texturePack tex =
+	{
+		  '#'  //WallLR
+		, 'L'  //WallFB
+		, ' '  //Ceiling
+		, '.'  //Floor
+		, '_'  //Tran
+		, '\\' //TranNeg
+		, '/'  //TranPos
+		, 'V'  //TranCcu
+		, '^'  //TranCcd
+	};
+	
 	// Define map
-	struct map donut =
+	struct map map_test =
 	{
 		{
 			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
@@ -104,20 +122,25 @@ int main()
 		50 * (PI/180), // startTheta
 	};
 	
-	// Place player in map
-	struct player thermo = { donut.startX, donut.startY, donut.startTheta }; 
+	// Place player in map and set attributes
+	struct player plr =
+	{
+		map_test.startX, map_test.startY, map_test.startTheta
+		, 0.1           // speedMov
+		, 10 * (PI/180) // speedTurn
+	};
 	
 	// Loop per frame
 	char input = '\0';
 	while (input != 'h')
 	{
 		// Wrap player theta
-		if (thermo.theta >= 2*PI) { thermo.theta -= 2*PI; }
-		else if (thermo.theta < 0) { thermo.theta += 2*PI; }
+		if (plr.theta >= 2*PI) { plr.theta -= 2*PI; }
+		else if (plr.theta < 0) { plr.theta += 2*PI; }
 		
 		// Loop for each ray
 		float spacing = fov / dispW;
-		float startTheta = thermo.theta + (fov / 2);
+		float startTheta = plr.theta + (fov / 2);
 		for(int r = 0; r < dispW; r++)
 		{
 			// Find angle of ray
@@ -131,35 +154,35 @@ int main()
 			char rayTex = ' ';
 			float rayDist = 0;
 			if ( // Right wall
-				rayTheta <= atan((1 - thermo.posY) / (1 - thermo.posX))
-				|| rayTheta > (3.0/2.0)*PI + atan((1 - thermo.posX) / (thermo.posY))
+				rayTheta <= atan((1 - plr.y) / (1 - plr.x))
+				|| rayTheta > (3.0/2.0)*PI + atan((1 - plr.x) / (plr.y))
 			)
 			{
-				rayDist = (1 - thermo.posX) / cos(rayTheta);
-				rayTex = texWallLR;
+				rayDist = (1 - plr.x) / cos(rayTheta);
+				rayTex = tex.WallLR;
 			}
 			else if ( // Forward wall
-				rayTheta <= PI/2 + atan((thermo.posX) / (1 - thermo.posY))
+				rayTheta <= PI/2 + atan((plr.x) / (1 - plr.y))
 			)
 			{
-				rayDist = (1 - thermo.posY) / sin(rayTheta);
-				rayTex = texWallFB;
+				rayDist = (1 - plr.y) / sin(rayTheta);
+				rayTex = tex.WallFB;
 			}
 			else if( // Left Wall
-				rayTheta <= PI + atan((thermo.posY) / (thermo.posX))
+				rayTheta <= PI + atan((plr.y) / (plr.x))
 			)
 			{
-				rayDist = (-thermo.posX) / cos(rayTheta);
-				rayTex = texWallLR;
+				rayDist = (-plr.x) / cos(rayTheta);
+				rayTex = tex.WallLR;
 			}
 			else // Back Wall
 			{
-				rayDist = (-thermo.posY) / sin(rayTheta);
-				rayTex = texWallFB;
+				rayDist = (-plr.y) / sin(rayTheta);
+				rayTex = tex.WallFB;
 			}
 			
 			// Adjust ray for aberration?
-			rayDist *= cos(thermo.theta - rayTheta);
+			rayDist *= cos(plr.theta - rayTheta);
 			
 			// Calculate column height
 			float colH = pow(distColCurve, rayDist - distColMax) * dispH;
@@ -175,7 +198,7 @@ int main()
 				{ 
 					if (rayDist > distRend) // Cut off wall after certain distance
 					{
-						frameBuf[y][r] = texCeiling;
+						frameBuf[y][r] = tex.Ceiling;
 					}
 					else
 					{
@@ -186,13 +209,13 @@ int main()
 					y > colH + (dispH - colH) / 2
 				)
 				{
-					frameBuf[y][r] = texFloor;
+					frameBuf[y][r] = tex.Floor;
 				}
 				else if ( // Ceiling
 					y <= (dispH - colH) / 2
 				)
 				{
-					frameBuf[y][r] = texCeiling;
+					frameBuf[y][r] = tex.Ceiling;
 				}
 				else // Unknown case
 				{
@@ -208,28 +231,24 @@ int main()
 		for (int x = 0; x < dispW; x++)
 		{
 			// Wall tex for this column
-			char texWall = frameBuf[dispH][x];
+			char colTexWall = frameBuf[dispH][x];
 			
 			// Wall tex left column
-			char texWallL = texWall;
+			char colTexWallL = colTexWall;
 			if (x >= 1)
-			{
-				texWallL = frameBuf[dispH][x-1];
-			}
+			{ colTexWallL = frameBuf[dispH][x-1]; }
 			
 			// Wall tex right column
-			char texWallR = texWall;
+			char colTexWallR = colTexWall;
 			if (x <= dispW - 2) // Don't go out of bounds
-			{
-				texWallR = frameBuf[dispH][x+1];
-			}
+			{ colTexWallR = frameBuf[dispH][x+1]; }
 			
 			for (int y = 0; y < dispH; y++)
 			{
 				if ( // Ceiling trans
-					frameBuf[y][x] == texCeiling
+					frameBuf[y][x] == tex.Ceiling
 					&& y + 1 < dispH
-					&& frameBuf[y+1][x] == texWall
+					&& frameBuf[y+1][x] == colTexWall
 				)
 				{
 					if ( // Don't go out of bounds on array
@@ -237,36 +256,36 @@ int main()
 						|| x == dispW - 1
 					)
 					{
-						frameBuf[y][x] = texTran;
+						frameBuf[y][x] = tex.Tran;
 					}
 					else if ( // Concave up trans
-						frameBuf[y][x-1] == texWallL
-						&& frameBuf[y][x+1] == texWallR
+						frameBuf[y][x-1] == colTexWallL
+						&& frameBuf[y][x+1] == colTexWallR
 					)
 					{
-						frameBuf[y][x] = texTranCcu;
+						frameBuf[y][x] = tex.TranCcu;
 					}
 					else if ( // Neg trans
-						frameBuf[y][x-1] == texWallL
+						frameBuf[y][x-1] == colTexWallL
 					)
 					{
-						frameBuf[y][x] = texTranNeg;
+						frameBuf[y][x] = tex.TranNeg;
 					}
 					else if ( // Pos trans
-						frameBuf[y][x+1] == texWallR
+						frameBuf[y][x+1] == colTexWallR
 					)
 					{
-						frameBuf[y][x] = texTranPos;
+						frameBuf[y][x] = tex.TranPos;
 					}
 					else // Normal case
 					{
-						frameBuf[y][x] = texTran;
+						frameBuf[y][x] = tex.Tran;
 					}
 				}
 				if ( // Floor trans
-					frameBuf[y][x] == texFloor
+					frameBuf[y][x] == tex.Floor
 					&& y - 1 >= 0
-					&& frameBuf[y-1][x] == texWall
+					&& frameBuf[y-1][x] == colTexWall
 				)
 				{
 					if ( // Don't go out of bounds on array
@@ -274,33 +293,33 @@ int main()
 						|| x == dispW - 1
 					)
 					{
-						frameBuf[y][x] = texTran;
+						frameBuf[y][x] = tex.Tran;
 					}
 					else if (
-						frameBuf[y-1][x+1] != texWallR
+						frameBuf[y-1][x+1] != colTexWallR
 						&& (
-							frameBuf[y-1][x-1] == texTran
-							|| frameBuf[y-1][x-1] == texTranNeg
+							frameBuf[y-1][x-1] == tex.Tran
+							|| frameBuf[y-1][x-1] == tex.TranNeg
 						)
 					)
 					{
-						frameBuf[y][x] = texTranCcu;
+						frameBuf[y][x] = tex.TranCcu;
 					}
 					else if ( // Pos trans
-						frameBuf[y-1][x+1] != texWallR
+						frameBuf[y-1][x+1] != colTexWallR
 					)
 					{
-						frameBuf[y][x] = texTranPos;
+						frameBuf[y][x] = tex.TranPos;
 					}
 					else if ( // Neg trans
-						frameBuf[y-1][x-1] != texWallL
+						frameBuf[y-1][x-1] != colTexWallL
 					)
 					{
-						frameBuf[y][x] = texTranNeg;
+						frameBuf[y][x] = tex.TranNeg;
 					}
 					else // Normal case
 					{
-						frameBuf[y][x] = texTran;
+						frameBuf[y][x] = tex.Tran;
 					}
 				}
 			}
@@ -328,10 +347,10 @@ int main()
 		// Debug
 		/*printf(
 			"A:%5.1f | B:%5.1f | C:%5.1f | D:%5.1f\n"
-			, (atan((1 - thermo.posY) / (1 - thermo.posX)))*(180/PI)
-			, (PI/2 + atan((thermo.posX) / (1 - thermo.posY)))*(180/PI)
-			, (PI + atan((thermo.posY) / (thermo.posX)))*(180/PI)
-			, ( (3.0/2.0)*PI + atan((1 - thermo.posX) / (thermo.posY)) )*(180/PI)
+			, (atan((1 - plr.y) / (1 - plr.x)))*(180/PI)
+			, (PI/2 + atan((plr.x) / (1 - plr.y)))*(180/PI)
+			, (PI + atan((plr.y) / (plr.x)))*(180/PI)
+			, ( (3.0/2.0)*PI + atan((1 - plr.x) / (plr.y)) )*(180/PI)
 		);*/
 		
 		// UI
@@ -362,9 +381,9 @@ int main()
 			printf
 			(
 				"pos:(%5.2f,%5.2f) | theta:%3.0f%c | N:%c | m = menu | c = controls\n> "
-				, thermo.posX, thermo.posY
-				, thermo.theta * (180/PI), 248 // Degree symbol
-				, northArrow(thermo.theta)
+				, plr.x, plr.y
+				, plr.theta * (180/PI), 248 // Degree symbol
+				, northArrow(plr.theta)
 			);
 			
 			// Get input
@@ -374,30 +393,30 @@ int main()
 				case 'h': { break; } // Will break out of while loop
 				case 'w':
 				{
-					thermo.posX += speedMov * cos(thermo.theta);
-					thermo.posY += speedMov * sin(thermo.theta);
+					plr.x += plr.speedMov * cos(plr.theta);
+					plr.y += plr.speedMov * sin(plr.theta);
 					break;
 				}
 				case 'a':
 				{
-					thermo.posX -= speedMov * sin(thermo.theta);
-					thermo.posY += speedMov * cos(thermo.theta);
+					plr.x -= plr.speedMov * sin(plr.theta);
+					plr.y += plr.speedMov * cos(plr.theta);
 					break;
 				}
 				case 's':
 				{
-					thermo.posX -= speedMov * cos(thermo.theta);
-					thermo.posY -= speedMov * sin(thermo.theta);
+					plr.x -= plr.speedMov * cos(plr.theta);
+					plr.y -= plr.speedMov * sin(plr.theta);
 					break;
 				}
 				case 'd':
 				{
-					thermo.posX += speedMov * sin(thermo.theta);
-					thermo.posY -= speedMov * cos(thermo.theta);
+					plr.x += plr.speedMov * sin(plr.theta);
+					plr.y -= plr.speedMov * cos(plr.theta);
 					break;
 				}
-				case 'q': { thermo.theta += speedTurn; break; }
-				case 'e': { thermo.theta -= speedTurn; break; }
+				case 'q': { plr.theta += plr.speedTurn; break; }
+				case 'e': { plr.theta -= plr.speedTurn; break; }
 				case 'm': { break; } // Will enter menu
 				case 'c': { break; } // Will show controls
 				default: { break; } // Nothing happens

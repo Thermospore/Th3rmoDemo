@@ -31,9 +31,13 @@ struct engineSettings
 	float colDistCurve; // Affects strength of curve concavity. Range: (0,1)
 };
 
-struct map
+struct mapFile
 {
 	bool walls[10][10];
+	
+	// Used map area
+	int sizeY;
+	int sizeX;
 	
 	// Player starting conditions
 	float startX;
@@ -114,18 +118,16 @@ float wrap(float &theta)
 int main()
 {
 	// Initialize engine settings
-	struct engineSettings eng =
-	{
-		  23*2 // h
-		, 79*2 // w
-		, 90 * (PI/180) // fov
-		, 0.3  // colDistMax
-		, 15   // colDistRend
-		, 0.7  // colDistCurve
-	};
+	struct engineSettings eng;
+	eng.h = 23*2;
+	eng.w = 79*2;
+	eng.fov = 90 * (PI/180);
+	eng.colDistMax = 0.3;
+	eng.colDistRend = 15;
+	eng.colDistCurve = 0.7;
 	
 	// Define map
-	struct map map_test =
+	struct mapFile map = 
 	{
 		{   // MAP Y IS INVERTED
 			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
@@ -137,36 +139,36 @@ int main()
 			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
 			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
 			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
+			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, }
 		}
-		, 1.2 // startX
-		, 1.3 // startY
-		, 50 * (PI/180) // startTheta
 	};
+	map.sizeX = 10;
+	map.sizeY = 10;
+	map.startX = 1.2;
+	map.startY = 1.3;
+	map.startTheta = 50 * (PI/180);
 	
 	// Place player in map and set attributes
-	struct player plr =
-	{
-		map_test.startX, map_test.startY, map_test.startTheta
-		, 0.1           // speedMov
-		, 10 * (PI/180) // speedTurn
-	};
+	struct player plr;
+	plr.x = map.startX;
+	plr.y = map.startY;
+	plr.theta = map.startTheta;
+	plr.speedMov = 0.1;
+	plr.speedTurn = 10 * (PI/180);
 	
 	// Set texture pack
-	struct texturePack tex =
-	{
-		  '#'  //WallLR
-		, '7'  //WallFB
-		, ' '  //Ceiling
-		, '.'  //Floor
-		, '_'  //Tran
-		, '\\' //TranNeg
-		, '/'  //TranPos
-		, 'V'  //TranCcu
-		, '^'  //TranCcd
-		, 'L'  //TranWall
-	};
-	
+	struct texturePack tex;
+	tex.WallLR  = '#';
+	tex.WallFB  = '7';
+	tex.Ceiling = ' ';
+	tex.Floor   = '.';
+	tex.Tran    = '_';
+	tex.TranNeg = '\\';
+	tex.TranPos = '/';
+	tex.TranCcu = 'V';
+	tex.TranCcd = '^';
+	tex.TranWall= 'L';
+		
 	// Initialize screen buffer
 	char frameBuf[eng.h + 1][eng.w]; // Using last row to store wall tex
 	for (int x = 0; x < eng.w; x++)
@@ -231,7 +233,7 @@ int main()
 			float cellX = plr.x - (int)plr.x;
 			float cellY = plr.y - (int)plr.y;
 			if (rayTheta == PI/2.0 || rayTheta == 3.0*(PI/2.0) ) { rayTheta += .01; } // Temp fix
-			for (int n = 0; !map_test.walls[wallY][wallX]; n++)
+			for (int n = 0; !map.walls[wallY][wallX]; n++)
 			{
 				// Set ray texture
 				rayTex = tex.WallLR;

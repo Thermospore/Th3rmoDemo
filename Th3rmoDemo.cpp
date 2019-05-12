@@ -23,8 +23,8 @@
 
 struct engineSettings
 {
-	int h;
 	int w;
+	int h;
 	
 	float fov; // Radians
 	
@@ -121,8 +121,8 @@ int main()
 {
 	// Initialize engine settings
 	struct engineSettings eng;
-	eng.h = 25*2 - 2; // Subtract 2 lines for UI
-	eng.w = 80*2 - 1; // Subtract 1 column so you don't get two newlines
+	eng.w = 80 - 1; // Subtract 1 column so you don't get two newlines
+	eng.h = 25 - 2; // Subtract 2 lines for UI
 	eng.fov = 90 * (PI/180);
 	eng.colDistMax = 0.3;
 	eng.colDistRend = 15;

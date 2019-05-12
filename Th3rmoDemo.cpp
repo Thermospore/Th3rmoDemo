@@ -126,27 +126,39 @@ int main()
 	eng.colDistRend = 15;
 	eng.colDistCurve = 0.7;
 	
-	// Define map
-	struct mapFile map = 
+	// Define map and start to read it in
+	struct mapFile map;
+	FILE* pMap = fopen("default.map", "r");
+	fscanf(pMap, "%*[^\n]\n"); // Skip header
+	
+	// Read map meta data
+	float thetaDegrees = 0; // We will convert theta to radians
+	fscanf(
+		pMap, "%d,%d,%f,%f,%f%*[^\n]\n"
+		, &map.sizeX, &map.sizeY
+		, &map.startX, &map.startY
+		, &thetaDegrees
+	);
+	map.startTheta = thetaDegrees * (PI/180);
+		
+	// Read map walls
+	fscanf(pMap, "%*[^\n]\n"); // Skip blank line
+	int temp = 0; // Reading directly into the bool gave wierd errors
+	for (int y = map.sizeY-1; y >= 0; y--)
 	{
-		{   // MAP Y IS INVERTED
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, }
+		for (int x = 0; x < map.sizeX; x++)
+		{
+			fscanf(pMap, "%d,", &temp);
+			if      (temp == 1) { map.walls[y][x] = true;  }
+			else if (temp == 0) { map.walls[y][x] = false; }
+			else
+			{
+				printf("Error: invalid map file");
+				exit(0);
+			}
 		}
-	};
-	map.sizeX = 10;
-	map.sizeY = 10;
-	map.startX = 1.2;
-	map.startY = 1.3;
-	map.startTheta = 50 * (PI/180);
+	}
+	fclose(pMap);
 	
 	// Place player in map and set attributes
 	struct player plr;
@@ -217,7 +229,7 @@ int main()
 		// Loop for each ray
 		float raySpacing = eng.fov / eng.w;
 		float rayStartTheta = plr.theta + (eng.fov / 2);
-		for(int r = 0; r < eng.w; r++)
+		for (int r = 0; r < eng.w; r++)
 		{
 			// Find angle of ray
 			float rayTheta = rayStartTheta - (raySpacing / 2) - (raySpacing * r);

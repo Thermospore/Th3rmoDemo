@@ -2,8 +2,6 @@
 //	fix crashes
 //		div by zero?
 //		cases when looking in a cardinal direction?
-//	fix wierdness at render dist
-//		maybe assign dist of -1 and have special case
 //	add Front and Back walls lel
 //	scan in maps from a file
 //		make it so you don't enter them backwards lmao
@@ -118,12 +116,12 @@ int main()
 	// Initialize engine settings
 	struct engineSettings eng =
 	{
-		  23*2  // h
-		, 79*2  // w
+		  23*2 // h
+		, 79*2 // w
 		, 90 * (PI/180) // fov
-		, 0.3 // colDistMax
-		, 15 // colDistRend
-		, 0.7 // colDistCurve
+		, 0.3  // colDistMax
+		, 15   // colDistRend
+		, 0.7  // colDistCurve
 	};
 	
 	// Define map
@@ -143,7 +141,7 @@ int main()
 		}
 		, 1.2 // startX
 		, 1.3 // startY
-		, 40 * (PI/180) // startTheta
+		, 50 * (PI/180) // startTheta
 	};
 	
 	// Place player in map and set attributes
@@ -233,9 +231,13 @@ int main()
 			float cellX = plr.x - (int)plr.x;
 			float cellY = plr.y - (int)plr.y;
 			if (rayTheta == PI/2.0 || rayTheta == 3.0*(PI/2.0) ) { rayTheta += .01; } // Temp fix
-			for (int n = 0; !map_test.walls[wallY][wallX] && rayDist < eng.colDistRend; n++)
+			for (int n = 0; !map_test.walls[wallY][wallX]; n++)
 			{
+				// Set ray texture
+				rayTex = tex.WallLR;
+				
 				// Find dist to wall N
+				// L and R wall equations are merged
 				rayDist = (
 					(
 						(n + 0.5) * sgn(cos(rayTheta)) //SIGN not sin! -1 or 1
@@ -244,19 +246,24 @@ int main()
 					/ cos(rayTheta)
 				);
 				
+				// Break if reached render distance
+				if (rayDist > eng.colDistRend) { break; }
+				
 				// Find map coords to check for wall
-				wallX = (int)plr.x + (n+1) * sgn(cos(rayTheta)); //SIGN not sin! -1 or 1
-				wallY = (int)(plr.y + rayDist * sin(rayTheta));
-				
-				
-				rayTex = tex.WallLR;
+				wallX = (int)plr.x + (n+1) * sgn(cos(rayTheta)); // L and R equations merged
+				wallY = (int)(plr.y + rayDist * sin(rayTheta));  // L and R were the same
 			}
 			
-			// Adjust ray for aberration?
-			rayDist *= cos(plr.theta - rayTheta);
-			
-			// Calculate column height
-			float colH = pow(eng.colDistCurve, rayDist - eng.colDistMax) * eng.h;
+			// Column height
+			float colH = 0;
+			if (rayDist <= eng.colDistRend) // Leave at 0 if past render distance
+			{
+				// Adjust ray for aberration?
+				rayDist *= cos(plr.theta - rayTheta);
+				
+				// Calculate column height
+				colH = pow(eng.colDistCurve, rayDist - eng.colDistMax) * eng.h;
+			}
 			
 			// Store to frame buffer
 			frameBuf[eng.h][r] = rayTex; // Note wall texture for edge function
@@ -268,11 +275,7 @@ int main()
 					&& y <= (eng.h - colH) / 2 + colH
 				)
 				{
-					// Render distance
-					if (rayDist > eng.colDistRend)
-					{ frameBuf[y][r] = tex.Ceiling; }
-					else
-					{ frameBuf[y][r] = rayTex; }
+					frameBuf[y][r] = rayTex;
 				}
 				// Floor
 				else if ( y >  (eng.h - colH) / 2 + colH )

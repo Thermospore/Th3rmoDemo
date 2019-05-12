@@ -1,3 +1,19 @@
+//	To do:
+//	fix crashes
+//		div by zero?
+//		cases when looking in a cardinal direction?
+//	fix wierdness at render dist
+//		maybe assign dist of -1 and have special case
+//	add Front and Back walls lel
+//	scan in maps from a file
+//		make it so you don't enter them backwards lmao
+//		maybe a way to scan in a png or something?
+//			maybe a raw would be easier
+//	collision?
+//	fix funky column height curve
+//	prevent OOB on map array
+//	settable map sizes?
+
 #include <stdio.h>
 #include <math.h>
 #include <cstdlib>
@@ -80,6 +96,14 @@ char northArrow(float theta)
 	return arrow;
 }
 
+// Returns the sign of the value (-1, 0, or 1)
+int sgn(float num)
+{
+	if (num > 0) { return  1; }
+	if (num < 0) { return -1; }
+	return  0;
+}
+
 // Wraps theta values to [0, 2*PI)
 float wrap(float &theta)
 {
@@ -94,32 +118,32 @@ int main()
 	// Initialize engine settings
 	struct engineSettings eng =
 	{
-		  23  // h
-		, 79  // w
+		  23*2  // h
+		, 79*2  // w
 		, 90 * (PI/180) // fov
 		, 0.3 // colDistMax
-		, 3.0 // colDistRend
-		, 0.2 // colDistCurve
+		, 15 // colDistRend
+		, 0.7 // colDistCurve
 	};
 	
 	// Define map
 	struct map map_test =
 	{
-		{
+		{   // MAP Y IS INVERTED
 			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
+			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
+			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
+			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
+			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
+			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
+			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
+			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
+			{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, },
 			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
 		}
-		, 0.2 // startX
-		, 0.3 // startY
-		, 50 * (PI/180) // startTheta
+		, 1.2 // startX
+		, 1.3 // startY
+		, 40 * (PI/180) // startTheta
 	};
 	
 	// Place player in map and set attributes
@@ -204,32 +228,28 @@ int main()
 			// Find ray length from player to wall
 			char rayTex = ' ';
 			float rayDist = 0;
-			// Right wall
-			if (
-				   rayTheta <= atan((1 - plr.y) / (1 - plr.x))
-				|| rayTheta >  atan((1 - plr.x) / (    plr.y)) + (3.0/2.0)*PI
-			)
+			int wallX = plr.x;
+			int wallY = plr.y;
+			float cellX = plr.x - (int)plr.x;
+			float cellY = plr.y - (int)plr.y;
+			if (rayTheta == PI/2.0 || rayTheta == 3.0*(PI/2.0) ) { rayTheta += .01; } // Temp fix
+			for (int n = 0; !map_test.walls[wallY][wallX] && rayDist < eng.colDistRend; n++)
 			{
-				rayDist = (1 - plr.x) / cos(rayTheta);
+				// Find dist to wall N
+				rayDist = (
+					(
+						(n + 0.5) * sgn(cos(rayTheta)) //SIGN not sin! -1 or 1
+						+ 0.5 - cellX
+					)
+					/ cos(rayTheta)
+				);
+				
+				// Find map coords to check for wall
+				wallX = (int)plr.x + (n+1) * sgn(cos(rayTheta)); //SIGN not sin! -1 or 1
+				wallY = (int)(plr.y + rayDist * sin(rayTheta));
+				
+				
 				rayTex = tex.WallLR;
-			}
-			// Forward wall
-			else if ( rayTheta <= atan((plr.x) / (1 - plr.y)) + PI/2 )
-			{
-				rayDist = (1 - plr.y) / sin(rayTheta);
-				rayTex = tex.WallFB;
-			}
-			// Left Wall
-			else if ( rayTheta <= atan((plr.y) / (    plr.x)) + PI )
-			{
-				rayDist = (-plr.x) / cos(rayTheta);
-				rayTex = tex.WallLR;
-			}
-			// Back Wall
-			else
-			{
-				rayDist = (-plr.y) / sin(rayTheta);
-				rayTex = tex.WallFB;
 			}
 			
 			// Adjust ray for aberration?
@@ -441,7 +461,7 @@ int main()
 		else if (input == 'd')
 		{
 			// Status Bar
-			printf("Current scene rays dumped to `log.txt`\n> ");
+			printf("Current scene rays dumped to `log.csv`\n> ");
 			
 			// Close dump pointer
 			fclose(pLog);

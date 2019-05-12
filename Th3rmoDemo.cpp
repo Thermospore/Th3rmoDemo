@@ -1,3 +1,19 @@
+//	To do:
+//	fix crashes
+//		div by zero?
+//		cases when looking in a cardinal direction?
+//	move loading maps to a function
+//		this way you can add loading maps as a menu option
+//	collision?
+//	fix funky column height curve
+//	prevent OOB on map array
+//	implement render distance into LR/FB raycasting thing
+//		to improve efficiency
+//	make the walls array dynamic?
+//		so it isn't hardcoded to a certain size
+//	an extra random character sometimes sneaks in before the status bar?
+//	fix edge drawing from bleeding into different walls
+
 #include <stdio.h>
 #include <math.h>
 #include <cstdlib>
@@ -7,8 +23,8 @@
 
 struct engineSettings
 {
-	int h;
 	int w;
+	int h;
 	
 	float fov; // Radians
 	
@@ -17,9 +33,13 @@ struct engineSettings
 	float colDistCurve; // Affects strength of curve concavity. Range: (0,1)
 };
 
-struct map
+struct mapFile
 {
 	bool walls[10][10];
+	
+	// Used map area
+	int sizeY;
+	int sizeX;
 	
 	// Player starting conditions
 	float startX;
@@ -80,6 +100,14 @@ char northArrow(float theta)
 	return arrow;
 }
 
+// Returns the sign of the value (-1, 0, or 1)
+int sgn(float num)
+{
+	if (num > 0) { return  1; }
+	if (num < 0) { return -1; }
+	return  0;
+}
+
 // Wraps theta values to [0, 2*PI)
 float wrap(float &theta)
 {
@@ -92,59 +120,69 @@ float wrap(float &theta)
 int main()
 {
 	// Initialize engine settings
-	struct engineSettings eng =
-	{
-		  23  // h
-		, 79  // w
-		, 90 * (PI/180) // fov
-		, 0.3 // colDistMax
-		, 3.0 // colDistRend
-		, 0.2 // colDistCurve
-	};
+	struct engineSettings eng;
+	eng.w = 80 - 1; // Subtract 1 column so you don't get two newlines
+	eng.h = 25 - 2; // Subtract 2 lines for UI
+	eng.fov = 90 * (PI/180);
+	eng.colDistMax = 0.3;
+	eng.colDistRend = 15;
+	eng.colDistCurve = 0.7;
 	
-	// Define map
-	struct map map_test =
+	// Define map and start to read it in
+	struct mapFile map;
+	FILE* pMap = fopen("default.map", "r");
+	fscanf(pMap, "%*[^\n]\n"); // Skip header
+	
+	// Read map meta data
+	float thetaDegrees = 0; // We will convert theta to radians
+	fscanf(
+		pMap, "%d,%d,%f,%f,%f%*[^\n]\n"
+		, &map.sizeX, &map.sizeY
+		, &map.startX, &map.startY
+		, &thetaDegrees
+	);
+	map.startTheta = thetaDegrees * (PI/180);
+		
+	// Read map walls
+	fscanf(pMap, "%*[^\n]\n"); // Skip blank line
+	int temp = 0; // Reading directly into the bool gave wierd errors
+	for (int y = map.sizeY-1; y >= 0; y--)
 	{
+		for (int x = 0; x < map.sizeX; x++)
 		{
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
+			fscanf(pMap, "%d,", &temp);
+			if      (temp == 1) { map.walls[y][x] = true;  }
+			else if (temp == 0) { map.walls[y][x] = false; }
+			else
+			{
+				printf("Error: invalid map file");
+				exit(0);
+			}
 		}
-		, 0.2 // startX
-		, 0.3 // startY
-		, 50 * (PI/180) // startTheta
-	};
+	}
+	fclose(pMap);
 	
 	// Place player in map and set attributes
-	struct player plr =
-	{
-		map_test.startX, map_test.startY, map_test.startTheta
-		, 0.1           // speedMov
-		, 10 * (PI/180) // speedTurn
-	};
+	struct player plr;
+	plr.x = map.startX;
+	plr.y = map.startY;
+	plr.theta = map.startTheta;
+	plr.speedMov = 0.1;
+	plr.speedTurn = 10 * (PI/180);
 	
 	// Set texture pack
-	struct texturePack tex =
-	{
-		  '#'  //WallLR
-		, '7'  //WallFB
-		, ' '  //Ceiling
-		, '.'  //Floor
-		, '_'  //Tran
-		, '\\' //TranNeg
-		, '/'  //TranPos
-		, 'V'  //TranCcu
-		, '^'  //TranCcd
-		, 'L'  //TranWall
-	};
-	
+	struct texturePack tex;
+	tex.WallLR  = '#';
+	tex.WallFB  = '7';
+	tex.Ceiling = ' ';
+	tex.Floor   = '.';
+	tex.Tran    = '_';
+	tex.TranNeg = '\\';
+	tex.TranPos = '/';
+	tex.TranCcu = 'V';
+	tex.TranCcd = '^';
+	tex.TranWall= 'L';
+		
 	// Initialize screen buffer
 	char frameBuf[eng.h + 1][eng.w]; // Using last row to store wall tex
 	for (int x = 0; x < eng.w; x++)
@@ -193,50 +231,98 @@ int main()
 		// Loop for each ray
 		float raySpacing = eng.fov / eng.w;
 		float rayStartTheta = plr.theta + (eng.fov / 2);
-		for(int r = 0; r < eng.w; r++)
+		for (int r = 0; r < eng.w; r++)
 		{
 			// Find angle of ray
 			float rayTheta = rayStartTheta - (raySpacing / 2) - (raySpacing * r);
 			
 			// Wrap rayTheta
 			wrap(rayTheta);
+			
+			// Temp fix for cardinal directions
+			if (
+				rayTheta == 0
+				|| rayTheta == PI/2
+				|| rayTheta == 2*PI
+				|| rayTheta == 3*(PI/2)
+			) { rayTheta += .01; }
 						
 			// Find ray length from player to wall
+			// We check Front/Back and Left/Right walls separately
 			char rayTex = ' ';
+			
+			float cellX = plr.x - (int)plr.x; // Position in current cell
+			float cellY = plr.y - (int)plr.y;
+			
 			float rayDist = 0;
-			// Right wall
-			if (
-				   rayTheta <= atan((1 - plr.y) / (1 - plr.x))
-				|| rayTheta >  atan((1 - plr.x) / (    plr.y)) + (3.0/2.0)*PI
-			)
+			float rayDistFB = (
+					( 0.5 * (sgn(sin(rayTheta)) + 1) - cellY )
+					/ sin(rayTheta)
+				);
+			float rayDistLR = (
+					( 0.5 * (sgn(cos(rayTheta)) + 1) - cellX )
+					/ cos(rayTheta)
+				);
+			
+			int wallNFB = 0; // Number of walls away from current cell
+			int wallNLR = 0;
+			
+			int wallX = plr.x; // Coords of wall we are checking
+			int wallY = plr.y;
+			
+			while (!map.walls[wallY][wallX])
 			{
-				rayDist = (1 - plr.x) / cos(rayTheta);
-				rayTex = tex.WallLR;
-			}
-			// Forward wall
-			else if ( rayTheta <= atan((plr.x) / (1 - plr.y)) + PI/2 )
-			{
-				rayDist = (1 - plr.y) / sin(rayTheta);
-				rayTex = tex.WallFB;
-			}
-			// Left Wall
-			else if ( rayTheta <= atan((plr.y) / (    plr.x)) + PI )
-			{
-				rayDist = (-plr.x) / cos(rayTheta);
-				rayTex = tex.WallLR;
-			}
-			// Back Wall
-			else
-			{
-				rayDist = (-plr.y) / sin(rayTheta);
-				rayTex = tex.WallFB;
+				// Check closest wall
+				// Front and Back walls
+				if (rayDistFB < rayDistLR)
+				{
+					rayDist = rayDistFB;
+					rayTex = tex.WallFB;
+					
+					wallY = (int)plr.y + (wallNFB+1) * sgn(sin(rayTheta)); // F and B equations merged
+					wallX = (int)(plr.x + rayDist * cos(rayTheta)); // F and B were the same
+					
+					// Update to next wall for the next loop
+					wallNFB++;
+					rayDistFB = (
+						(
+							(wallNFB + 0.5) * sgn(sin(rayTheta)) //SIGN not sin! -1 or 1
+							+ 0.5 - cellY
+						)
+						/ sin(rayTheta)
+					);
+				}
+				// Left and Right walls
+				else
+				{
+					rayDist = rayDistLR;
+					rayTex = tex.WallLR;
+					
+					wallX = (int)plr.x + (wallNLR+1) * sgn(cos(rayTheta)); // L and R equations merged
+					wallY = (int)(plr.y + rayDist * sin(rayTheta)); // L and R were the same
+					
+					// Update to next wall for the next loop
+					wallNLR++;
+					rayDistLR = (
+						(
+							(wallNLR + 0.5) * sgn(cos(rayTheta)) //SIGN not sin! -1 or 1
+							+ 0.5 - cellX
+						)
+						/ cos(rayTheta)
+					);
+				}
 			}
 			
-			// Adjust ray for aberration?
-			rayDist *= cos(plr.theta - rayTheta);
-			
-			// Calculate column height
-			float colH = pow(eng.colDistCurve, rayDist - eng.colDistMax) * eng.h;
+			// Column height
+			float colH = 0;
+			if (rayDist <= eng.colDistRend) // Leave at 0 if past render distance
+			{
+				// Adjust ray for aberration?
+				rayDist *= cos(plr.theta - rayTheta);
+				
+				// Calculate column height
+				colH = pow(eng.colDistCurve, rayDist - eng.colDistMax) * eng.h;
+			}
 			
 			// Store to frame buffer
 			frameBuf[eng.h][r] = rayTex; // Note wall texture for edge function
@@ -248,11 +334,7 @@ int main()
 					&& y <= (eng.h - colH) / 2 + colH
 				)
 				{
-					// Render distance
-					if (rayDist > eng.colDistRend)
-					{ frameBuf[y][r] = tex.Ceiling; }
-					else
-					{ frameBuf[y][r] = rayTex; }
+					frameBuf[y][r] = rayTex;
 				}
 				// Floor
 				else if ( y >  (eng.h - colH) / 2 + colH )
@@ -388,7 +470,7 @@ int main()
 		}
 		
 		// Pile frame buffer into a single string
-		//                 ((Line + \n) * #lines) + \0
+		//                 ((Line + \n) * #lines) + \0?
 		int printBufSize = ((eng.w + 1) * eng.h) + 1;
 		char printBuf[printBufSize];
 		for (int y = 0; y < eng.h; y++)
@@ -441,7 +523,7 @@ int main()
 		else if (input == 'd')
 		{
 			// Status Bar
-			printf("Current scene rays dumped to `log.txt`\n> ");
+			printf("Current scene rays dumped to `log.csv`\n> ");
 			
 			// Close dump pointer
 			fclose(pLog);

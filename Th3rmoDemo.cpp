@@ -3,14 +3,14 @@
 //		div by zero?
 //		cases when looking in a cardinal direction?
 //	add Front and Back walls lel
-//	scan in maps from a file
-//		make it so you don't enter them backwards lmao
-//		maybe a way to scan in a png or something?
-//			maybe a raw would be easier
+//	move loading maps to a function
+//		this way you can add loading maps as a menu option
 //	collision?
 //	fix funky column height curve
 //	prevent OOB on map array
-//	settable map sizes?
+//	make the walls array dynamic?
+//		so it isn't hardcoded to a certain size
+//	an extra random character sometimes sneaks in before the status bar?
 
 #include <stdio.h>
 #include <math.h>
@@ -119,8 +119,8 @@ int main()
 {
 	// Initialize engine settings
 	struct engineSettings eng;
-	eng.h = 23*2;
-	eng.w = 79*2;
+	eng.h = 25*2 - 2; // Subtract 2 lines for UI
+	eng.w = 80*2 - 1; // Subtract 1 column so you don't get two newlines
 	eng.fov = 90 * (PI/180);
 	eng.colDistMax = 0.3;
 	eng.colDistRend = 15;
@@ -425,7 +425,7 @@ int main()
 		}
 		
 		// Pile frame buffer into a single string
-		//                 ((Line + \n) * #lines) + \0
+		//                 ((Line + \n) * #lines) + \0?
 		int printBufSize = ((eng.w + 1) * eng.h) + 1;
 		char printBuf[printBufSize];
 		for (int y = 0; y < eng.h; y++)

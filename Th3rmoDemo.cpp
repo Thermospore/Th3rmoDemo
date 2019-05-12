@@ -2,15 +2,17 @@
 //	fix crashes
 //		div by zero?
 //		cases when looking in a cardinal direction?
-//	add Front and Back walls lel
 //	move loading maps to a function
 //		this way you can add loading maps as a menu option
 //	collision?
 //	fix funky column height curve
 //	prevent OOB on map array
+//	implement render distance into LR/FB raycasting thing
+//		to improve efficiency
 //	make the walls array dynamic?
 //		so it isn't hardcoded to a certain size
 //	an extra random character sometimes sneaks in before the status bar?
+//	fix edge drawing from bleeding into different walls
 
 #include <stdio.h>
 #include <math.h>
@@ -236,36 +238,79 @@ int main()
 			
 			// Wrap rayTheta
 			wrap(rayTheta);
+			
+			// Temp fix for cardinal directions
+			if (
+				rayTheta == 0
+				|| rayTheta == PI/2
+				|| rayTheta == 2*PI
+				|| rayTheta == 3*(PI/2)
+			) { rayTheta += .01; }
 						
 			// Find ray length from player to wall
+			// We check Front/Back and Left/Right walls separately
 			char rayTex = ' ';
-			float rayDist = 0;
-			int wallX = plr.x;
-			int wallY = plr.y;
-			float cellX = plr.x - (int)plr.x;
+			
+			float cellX = plr.x - (int)plr.x; // Position in current cell
 			float cellY = plr.y - (int)plr.y;
-			if (rayTheta == PI/2.0 || rayTheta == 3.0*(PI/2.0) ) { rayTheta += .01; } // Temp fix
-			for (int n = 0; !map.walls[wallY][wallX]; n++)
-			{
-				// Set ray texture
-				rayTex = tex.WallLR;
-				
-				// Find dist to wall N
-				// L and R wall equations are merged
-				rayDist = (
-					(
-						(n + 0.5) * sgn(cos(rayTheta)) //SIGN not sin! -1 or 1
-						+ 0.5 - cellX
-					)
+			
+			float rayDist = 0;
+			float rayDistFB = (
+					( 0.5 * (sgn(sin(rayTheta)) + 1) - cellY )
+					/ sin(rayTheta)
+				);
+			float rayDistLR = (
+					( 0.5 * (sgn(cos(rayTheta)) + 1) - cellX )
 					/ cos(rayTheta)
 				);
-				
-				// Break if reached render distance
-				if (rayDist > eng.colDistRend) { break; }
-				
-				// Find map coords to check for wall
-				wallX = (int)plr.x + (n+1) * sgn(cos(rayTheta)); // L and R equations merged
-				wallY = (int)(plr.y + rayDist * sin(rayTheta));  // L and R were the same
+			
+			int wallNFB = 0; // Number of walls away from current cell
+			int wallNLR = 0;
+			
+			int wallX = plr.x; // Coords of wall we are checking
+			int wallY = plr.y;
+			
+			while (!map.walls[wallY][wallX])
+			{
+				// Check closest wall
+				// Front and Back walls
+				if (rayDistFB < rayDistLR)
+				{
+					rayDist = rayDistFB;
+					rayTex = tex.WallFB;
+					
+					wallY = (int)plr.y + (wallNFB+1) * sgn(sin(rayTheta)); // F and B equations merged
+					wallX = (int)(plr.x + rayDist * cos(rayTheta)); // F and B were the same
+					
+					// Update to next wall for the next loop
+					wallNFB++;
+					rayDistFB = (
+						(
+							(wallNFB + 0.5) * sgn(sin(rayTheta)) //SIGN not sin! -1 or 1
+							+ 0.5 - cellY
+						)
+						/ sin(rayTheta)
+					);
+				}
+				// Left and Right walls
+				else
+				{
+					rayDist = rayDistLR;
+					rayTex = tex.WallLR;
+					
+					wallX = (int)plr.x + (wallNLR+1) * sgn(cos(rayTheta)); // L and R equations merged
+					wallY = (int)(plr.y + rayDist * sin(rayTheta)); // L and R were the same
+					
+					// Update to next wall for the next loop
+					wallNLR++;
+					rayDistLR = (
+						(
+							(wallNLR + 0.5) * sgn(cos(rayTheta)) //SIGN not sin! -1 or 1
+							+ 0.5 - cellX
+						)
+						/ cos(rayTheta)
+					);
+				}
 			}
 			
 			// Column height

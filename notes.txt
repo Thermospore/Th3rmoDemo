@@ -7,6 +7,46 @@ per ray
 		find a wall that exists
 		or exceeded render distance
 		
+	FB walls
+		for n=0; until wall or exceed rend dist; n++
+			find raydist
+				current cell pos = plr.pos - (int)plr.pos
+				F wall sin(theta) pos
+					y len = 1-cellY + N
+					sin(theta) = y len / rdist
+					rdist = y len / sin(theta)
+					rdist = (1-cellY + N) / sin(theta)
+					rdist = (1 +  1*N - cellY) / sin(theta)
+				B wall sin(theta) neg
+					y len = celly + N
+					sin(theta) = -ylen / rdist
+					rdist = -(celly + N) / sin(theta)
+					rdist = (0 + -1*N - cellY) / sin(theta)
+				combine
+					rdist =
+						(
+							(N + 0.5) * sgn(sin(theta)) //SIGN! -1 or 1
+							+ 0.5 - cellY
+						)
+						/ sin(theta)
+						
+			detect collision
+				which map grid to check?
+					map[y][x]
+						F wall
+							y = (int)plrY + (N+1)
+							x =
+								cos(theta) = xpart / rdist
+								xpart = rdist * cos(theta)
+								x = (int)(plrX + xpart)
+								x = (int)(plrX + rdist * cos(theta))
+						B wall
+							y = (int)plrY - (N+1)
+							x = (int)(plrX + rdist * cos(theta))
+						combine
+							y = (int)plrY + (N+1) * sgn(sin(theta)) //SIGN!
+							x = (int)(plrX + rdist * cos(theta))
+		
 	RL walls
 		for n=0; until wall or exceed rend dist; n++
 			find raydist
@@ -29,6 +69,7 @@ per ray
 							+ 0.5 - cellX
 						)
 						/ cos(theta)
+						
 			detect collision
 				which map grid to check?
 					map[y][x]

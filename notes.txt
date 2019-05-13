@@ -1,88 +1,130 @@
-per ray
-	start at plr
-	do
-		find cell wall collision
-		check for wall existence
-	until
-		find a wall that exists
-		or exceeded render distance
-		
-	FB walls
-		for n=0; until wall or exceed rend dist; n++
-			find raydist
-				current cell pos = plr.pos - (int)plr.pos
-				F wall sin(theta) pos
-					y len = 1-cellY + N
-					sin(theta) = y len / rdist
-					rdist = y len / sin(theta)
-					rdist = (1-cellY + N) / sin(theta)
-					rdist = (1 +  1*N - cellY) / sin(theta)
-				B wall sin(theta) neg
-					y len = celly + N
-					sin(theta) = -ylen / rdist
-					rdist = -(celly + N) / sin(theta)
-					rdist = (0 + -1*N - cellY) / sin(theta)
-				combine
-					rdist =
-						(
-							(N + 0.5) * sgn(sin(theta)) //SIGN! -1 or 1
-							+ 0.5 - cellY
-						)
-						/ sin(theta)
-						
-			detect collision
-				which map grid to check?
-					map[y][x]
-						F wall
-							y = (int)plrY + (N+1)
-							x =
-								cos(theta) = xpart / rdist
-								xpart = rdist * cos(theta)
-								x = (int)(plrX + xpart)
+Wall detection
+	per ray
+		start at plr
+		do
+			find cell wall collision
+			check for wall existence
+		until
+			find a wall that exists
+			or exceeded render distance
+			
+		FB walls
+			for n=0; until wall or exceed rend dist; n++
+				find raydist
+					current cell pos = plr.pos - (int)plr.pos
+					F wall sin(theta) pos
+						y len = 1-cellY + N
+						sin(theta) = y len / rdist
+						rdist = y len / sin(theta)
+						rdist = (1-cellY + N) / sin(theta)
+						rdist = (1 +  1*N - cellY) / sin(theta)
+					B wall sin(theta) neg
+						y len = celly + N
+						sin(theta) = -ylen / rdist
+						rdist = -(celly + N) / sin(theta)
+						rdist = (0 + -1*N - cellY) / sin(theta)
+					combine
+						rdist =
+							(
+								(N + 0.5) * sgn(sin(theta)) //SIGN! -1 or 1
+								+ 0.5 - cellY
+							)
+							/ sin(theta)
+							
+				detect collision
+					which map grid to check?
+						map[y][x]
+							F wall
+								y = (int)plrY + (N+1)
+								x =
+									cos(theta) = xpart / rdist
+									xpart = rdist * cos(theta)
+									x = (int)(plrX + xpart)
+									x = (int)(plrX + rdist * cos(theta))
+							B wall
+								y = (int)plrY - (N+1)
 								x = (int)(plrX + rdist * cos(theta))
-						B wall
-							y = (int)plrY - (N+1)
-							x = (int)(plrX + rdist * cos(theta))
-						combine
-							y = (int)plrY + (N+1) * sgn(sin(theta)) //SIGN!
-							x = (int)(plrX + rdist * cos(theta))
-		
-	RL walls
-		for n=0; until wall or exceed rend dist; n++
-			find raydist
-				current cell pos = plr.pos - (int)plr.pos
-				R wall cos(theta) pos
-					x length = 1-cellX + N
-					rdist = xlen / cos(theta)
-					rdist = (1-cellX + N) / cos(theta)
-					rdist = (1 +  1*N - cellX) / cos(theta)
-				L wall cos(theta) neg
-					x length =   cellX + N
-					cos(theta) = -xlen / rdist
-					rdist = -xlen / cos(theta)
-					rdist = -(cellX + N) / cos(theta)
-					rdist = (0 + -1*N - cellX) / cos(theta)
-				combine
-					rdist =
-						(
-							(N + 0.5) * sgn(cos(theta)) //SIGN! -1 or 1
-							+ 0.5 - cellX
-						)
-						/ cos(theta)
-						
-			detect collision
-				which map grid to check?
-					map[y][x]
-						R wall
-							x = (int)plrX + (N+1)
-							y = 
-								sin(theta) = ypart / rdist
-								ypart = rdist * sin(theta)
-								y = (int)(plrY + ypart)
+							combine
+								y = (int)plrY + (N+1) * sgn(sin(theta)) //SIGN!
+								x = (int)(plrX + rdist * cos(theta))
+			
+		RL walls
+			for n=0; until wall or exceed rend dist; n++
+				find raydist
+					current cell pos = plr.pos - (int)plr.pos
+					R wall cos(theta) pos
+						x length = 1-cellX + N
+						rdist = xlen / cos(theta)
+						rdist = (1-cellX + N) / cos(theta)
+						rdist = (1 +  1*N - cellX) / cos(theta)
+					L wall cos(theta) neg
+						x length =   cellX + N
+						cos(theta) = -xlen / rdist
+						rdist = -xlen / cos(theta)
+						rdist = -(cellX + N) / cos(theta)
+						rdist = (0 + -1*N - cellX) / cos(theta)
+					combine
+						rdist =
+							(
+								(N + 0.5) * sgn(cos(theta)) //SIGN! -1 or 1
+								+ 0.5 - cellX
+							)
+							/ cos(theta)
+							
+				detect collision
+					which map grid to check?
+						map[y][x]
+							R wall
+								x = (int)plrX + (N+1)
+								y = 
+									sin(theta) = ypart / rdist
+									ypart = rdist * sin(theta)
+									y = (int)(plrY + ypart)
+									y = (int)(plrY + rdist * sin(theta))
+							L wall
+								x = (int)plrX - (N+1)
 								y = (int)(plrY + rdist * sin(theta))
-						L wall
-							x = (int)plrX - (N+1)
-							y = (int)(plrY + rdist * sin(theta))
-						combine
-							x = (int)plrX + (N+1) * sgn(cos(theta)) //SIGN!
-							y = (int)(plrY + rdist * sin(theta))
+							combine
+								x = (int)plrX + (N+1) * sgn(cos(theta)) //SIGN!
+								y = (int)(plrY + rdist * sin(theta))
+
+Improving colH method
+	top of wall
+		tan(thetaWT-PI/2) = (wallH-plrH) / rdist
+		thetaWT - PI/2 = atan((wallH-plrH) / rdist)
+		thetaWT = PI/2 + atan((wallH-plrH) / rdist)
+
+	bot wall
+		tan(thetaWB) = rdist / plrH
+		thetaWB = atan(rdist / plrH)
+		
+	how to scale?
+		(plrVT + fov/2 - theta)*(h/fov)
+		
+		colT = (plrVT + fov/2 - thetaWT)*(h/fov)
+		colB = (plrVT + fov/2 - thetaWB)*(h/fov)
+		
+	draw
+		ceiling from 0 to colT
+		wall from colT to colB
+		floor from ColB to h
+
+	rev eng raydist formula?
+		
+		thetaWT = 90deg + atan(0.5 / rdist)
+		thetaWB = atan(rdist / 0.5)
+		
+		thetaFovB = 90deg - 45deg = 45deg
+		(theta - 45deg)*(h/90deg)
+		
+		colT = (thetaWT - 45deg)*(h/90deg)
+		colB = (thetaWB - 45deg)*(h/90deg)
+		colH - colT - colB
+		
+		colT = (90deg + atan(0.5 / rdist) - 45deg)*(h/90deg)
+		colT = (45deg + atan(0.5 / rdist))*(h/90deg)
+		
+		colB = (atan(rdist / 0.5) - 45deg)*(h/90deg)
+		
+		colH = (45deg + atan(0.5 / rdist))*(h/90deg) - (atan(rdist / 0.5) - 45deg)*(h/90deg)
+		colH = h * ((2/PI)*atan(0.5 / rdist) - (2/PI)*atan(2*rdist) + 1)

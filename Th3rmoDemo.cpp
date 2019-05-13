@@ -13,6 +13,15 @@
 //		so it isn't hardcoded to a certain size
 //	an extra random character sometimes sneaks in before the status bar?
 //	fix edge drawing from bleeding into different walls
+//	easier way to change resolution
+//	minimap!
+//	move wallH to map struct
+//	find better names for player thetas for hor and vert
+//	double check default colH?
+//	adjust for ray abberation before or after rend dist check in colH fn?
+//	update log dumping with new values
+//	maybe the vertical column rays need some sort of aberation correction as well?
+//	supersampling would be cool!
 
 #include <stdio.h>
 #include <math.h>
@@ -20,6 +29,7 @@
 #include <conio.h>
 
 #define PI 3.14159265
+#define SQR_RATIO 1.908213 // Ratio to get visibly square walls on default console settings
 
 struct engineSettings
 {
@@ -28,14 +38,14 @@ struct engineSettings
 	
 	float fov; // Radians
 	
-	float colDistMax;   // Distance at which a column will fill the whole screen
-	float colDistRend;  // Walls cut off at this distance
-	float colDistCurve; // Affects strength of curve concavity. Range: (0,1)
+	float rendDist;  // Walls cut off at this distance
+	
+	float wallH; // Should move to map...
 };
 
 struct mapFile
 {
-	bool walls[10][10];
+	bool walls[50][50];
 	
 	// Used map area
 	int sizeY;
@@ -51,7 +61,10 @@ struct player
 {
 	float x;
 	float y;
+	float h;
+	
 	float theta; // Radians
+	float vTheta;
 	
 	float speedMov;
 	float speedTurn;
@@ -124,9 +137,8 @@ int main()
 	eng.w = 80 - 1; // Subtract 1 column so you don't get two newlines
 	eng.h = 25 - 2; // Subtract 2 lines for UI
 	eng.fov = 90 * (PI/180);
-	eng.colDistMax = 0.3;
-	eng.colDistRend = 15;
-	eng.colDistCurve = 0.7;
+	eng.rendDist = 50;
+	eng.wallH = SQR_RATIO;
 	
 	// Define map and start to read it in
 	struct mapFile map;
@@ -166,7 +178,9 @@ int main()
 	struct player plr;
 	plr.x = map.startX;
 	plr.y = map.startY;
+	plr.h = SQR_RATIO / 2;
 	plr.theta = map.startTheta;
+	plr.vTheta = 90*(PI/180);
 	plr.speedMov = 0.1;
 	plr.speedTurn = 10 * (PI/180);
 	
@@ -314,14 +328,23 @@ int main()
 			}
 			
 			// Column height
-			float colH = 0;
-			if (rayDist <= eng.colDistRend) // Leave at 0 if past render distance
+			float colT = eng.h / 2.0; // This might be wrong
+			float colB = eng.h / 2.0;
+			if (rayDist <= eng.rendDist) // Leave at 0 if past render distance
 			{
 				// Adjust ray for aberration?
-				rayDist *= cos(plr.theta - rayTheta);
+				rayDist *= cos(plr.theta - rayTheta); // before or after rend dist check?
 				
-				// Calculate column height
-				colH = pow(eng.colDistCurve, rayDist - eng.colDistMax) * eng.h;
+				// Leaving this here as a tribute, since it never got to see the light of day :(
+			//	colH = eng.h * ((2/PI)*atan(0.5 / rayDist) - (2/PI)*atan(2*rayDist) + 1);
+				
+				// Find angles to Top and Bottom of wall
+				float thetaWT = PI/2 + atan((eng.wallH-plr.h) / rayDist);
+				float thetaWB = atan(rayDist / plr.h);
+				
+				// Find where the column should be placed on the screen	
+				colT = (plr.vTheta + eng.fov/2 - thetaWT)*(eng.h/eng.fov);
+				colB = (plr.vTheta + eng.fov/2 - thetaWB)*(eng.h/eng.fov);
 			}
 			
 			// Store to frame buffer
@@ -330,19 +353,19 @@ int main()
 			{
 				// Wall
 				if (
-					   y >  (eng.h - colH) / 2
-					&& y <= (eng.h - colH) / 2 + colH
+					   y >= colT - 0.5
+					&& y <= colB - 0.5
 				)
 				{
 					frameBuf[y][r] = rayTex;
 				}
 				// Floor
-				else if ( y >  (eng.h - colH) / 2 + colH )
+				else if (y > colB - 0.5)
 				{
 					frameBuf[y][r] = tex.Floor;
 				}
 				// Ceiling
-				else if ( y <= (eng.h - colH) / 2 )
+				else if (y < colT - 0.5)
 				{
 					frameBuf[y][r] = tex.Ceiling;
 				}
@@ -358,7 +381,7 @@ int main()
 			{
 				fprintf(
 					pLog, "%d,%f,%f,%f,\n"
-					, r, rayTheta*(180/PI), rayDist, colH
+					, r, rayTheta*(180/PI), rayDist, colT-colB
 				);
 			}
 		}

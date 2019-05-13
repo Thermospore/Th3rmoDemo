@@ -19,17 +19,18 @@ general improvements
 		to improve efficiency
 	move loading maps to a function
 		this way you can add loading maps as a menu option
-	fix funky column height curve
+	fix funky column height curve at different vtheta, wallh, and plrh values
 		maybe vert col rays need some sort of aberation correction as well?
 		
 new features
 	collision?
 	minimap!
-	easier way to change resolution
 	supersampling would be cool!
 	full raycasting on vertical rays
 	be able to have walls that don't touch the floor
 		and be able to see walls underneath behind them
+	revamp UI engine
+	cast rays so they are spaced out evenly by wall dist, not by theta
 */
 
 #include <stdio.h>
@@ -205,16 +206,6 @@ int main()
 	tex.TranCcu = 'V';
 	tex.TranCcd = '^';
 	tex.TranWall= 'L';
-		
-	// Initialize screen buffer
-	char frameBuf[eng.h + 1][eng.w]; // Using last row to store wall tex
-	for (int x = 0; x < eng.w; x++)
-	{
-		for (int y = 0; y < eng.h + 1; y++)
-		{
-			frameBuf[y][x] = ' ';
-		}
-	}
 	
 	// Declare pointer to log file (only used when dumping)
 	FILE* pLog;
@@ -222,7 +213,17 @@ int main()
 	// Loop per frame
 	char input = ' ';
 	while (input != 'h')
-	{
+	{	
+		// Initialize screen buffer
+		char frameBuf[eng.h + 1][eng.w]; // Using last row to store wall tex
+		for (int x = 0; x < eng.w; x++)
+		{
+			for (int y = 0; y < eng.h + 1; y++)
+			{
+				frameBuf[y][x] = ' ';
+			}
+		}
+	
 		// Wrap player theta
 		wrap(plr.theta);
 		
@@ -502,9 +503,11 @@ int main()
 		}
 		
 		// Pile frame buffer into a single string
-		//                 ((Line + \n) * #lines) + \0?
+		//                 ((Line + \n) * #lines) + \0
 		int printBufSize = ((eng.w + 1) * eng.h) + 1;
 		char printBuf[printBufSize];
+		printBuf[printBufSize-1] = '\0'; // End of string character
+		
 		for (int y = 0; y < eng.h; y++)
 		{
 			int lineOffset = y * (eng.w + 1);
@@ -512,9 +515,11 @@ int main()
 			for (int x = 0; x < eng.w; x++)
 			{
 				printBuf[x + lineOffset] = frameBuf[y][x];
+				//printf("%c", frameBuf[y][x]);
 			}
 			
 			printBuf[eng.w + lineOffset] = '\n';
+			//printf("\n");
 		}
 		
 		// Print frame. Only uses one printf. Much faster!
@@ -526,7 +531,7 @@ int main()
 		if (input == 'm')
 		{
 			// Status Bar
-			printf("b = back | d = dump\n> ");
+			printf("b = back | d = dump | r = resolution\n> ");
 			
 			// Get input
 			input = getch();
@@ -534,6 +539,7 @@ int main()
 			{
 				case 'b': { break; } // Return to main screen
 				case 'd': {	break; } // Enter dump screen
+				case 'r': { break; } // Enter res select screen
 				default:
 				{
 					// Re-enter options menu
@@ -547,6 +553,7 @@ int main()
 				if (
 					   input != 'd'
 					&& input != 'm'
+					&& input != 'r'
 				)
 				{ input = ' '; }
 			}
@@ -561,8 +568,26 @@ int main()
 			fclose(pLog);
 			
 			// Get input
-			input = ' '; // Return to main scene
 			system("pause");
+			
+			// Return to main scene
+			input = ' ';
+		}
+		// Resolution change
+		else if (input == 'r')
+		{
+			// Status Bar
+			printf("Enter console res (\"[w] [h]\")\n>" );
+			
+			// Get input
+			int consoleW;
+			int consoleH;
+			scanf("%d %d", &consoleW, &consoleH);
+			eng.w = consoleW - 1; // Subtract 1 column so you don't get two newlines
+			eng.h = consoleH - 2; // Subtract 2 lines for UI
+			
+			// Return to main scene
+			input = ' ';
 		}
 		// Controls
 		else if (input == 'c')
@@ -571,8 +596,10 @@ int main()
 			printf("h = halt (quit) | wasd = movement | q/e = look\n> ");
 			
 			// Get input
-			input = ' '; // return to main scene
 			system("pause");
+			
+			// return to main scene
+			input = ' ';
 		}
 		// Main scene
 		else

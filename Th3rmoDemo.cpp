@@ -1,27 +1,36 @@
-//	To do:
-//	fix crashes
-//		div by zero?
-//		cases when looking in a cardinal direction?
-//	move loading maps to a function
-//		this way you can add loading maps as a menu option
-//	collision?
-//	fix funky column height curve
-//	prevent OOB on map array
-//	implement render distance into LR/FB raycasting thing
-//		to improve efficiency
-//	make the walls array dynamic?
-//		so it isn't hardcoded to a certain size
-//	an extra random character sometimes sneaks in before the status bar?
-//	fix edge drawing from bleeding into different walls
-//	easier way to change resolution
-//	minimap!
-//	move wallH to map struct
-//	find better names for player thetas for hor and vert
-//	double check default colH?
-//	adjust for ray abberation before or after rend dist check in colH fn?
-//	update log dumping with new values
-//	maybe the vertical column rays need some sort of aberation correction as well?
-//	supersampling would be cool!
+/*	To do:
+bug fixes
+	fix crashes
+		div by zero?
+		cases when looking in a cardinal direction?
+	prevent OOB on map array
+	an extra random character sometimes sneaks in before the status bar?
+	
+general improvements
+	adjust for ray abberation before or after rend dist check in colH fn?
+	update log dumping with new values
+	find better names for player thetas for hor and vert
+	double check default colH?
+	move wallH to map struct
+	prevent edge drawing from bleeding into different walls
+	make the walls array dynamic?
+		so it isn't hardcoded to a certain size
+	implement render distance into LR/FB raycasting thing
+		to improve efficiency
+	move loading maps to a function
+		this way you can add loading maps as a menu option
+	fix funky column height curve
+		maybe vert col rays need some sort of aberation correction as well?
+		
+new features
+	collision?
+	minimap!
+	easier way to change resolution
+	supersampling would be cool!
+	full raycasting on vertical rays
+	be able to have walls that don't touch the floor
+		and be able to see walls underneath behind them
+*/
 
 #include <stdio.h>
 #include <math.h>

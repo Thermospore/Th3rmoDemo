@@ -6,10 +6,10 @@ bug fixes
 	prevent OOB on map array
 	shit gets broken at render distance
 		only seems to be an issue with odd eng.h vals
-	
+		double check default colH?
+		
 general improvements
 	find better names for player thetas for hor and vert
-	double check default colH?
 	move wallH to map struct
 	prevent edge drawing from bleeding into different walls
 	make the walls array dynamic?
@@ -22,7 +22,6 @@ general improvements
 		maybe vert col rays need some sort of aberation correction as well?
 	2nd frame buff array to store col info
 		raytex, wall position, etc
-	add a constant for rad to deg and deg to rad
 	move commas between variables a line up in multiline printfs?
 		
 new features
@@ -43,6 +42,8 @@ new features
 #include <conio.h>
 
 #define PI 3.14159265
+#define RTD 180/PI // Radians to degrees
+#define DTR PI/180 // Degrees to radians
 #define SQR_RATIO 1.908213 // Ratio to get visibly square walls on default console settings
 
 struct engineSettings
@@ -102,7 +103,7 @@ struct texturePack
 char northArrow(float theta)
 {
 	// Convert to degrees
-	theta *= 180/PI;
+	theta *= RTD;
 	
 	// Find octant
 	int octant = 0;
@@ -150,7 +151,7 @@ int main()
 	struct engineSettings eng;
 	eng.w = 80 - 1; // Subtract 1 column so you don't get two newlines
 	eng.h = 25 - 2; // Subtract 2 lines for UI
-	eng.fov = 90 * (PI/180);
+	eng.fov = 90 * DTR;
 	eng.rendDist = 50;
 	eng.wallH = SQR_RATIO;
 	
@@ -167,7 +168,7 @@ int main()
 		, &map.startX, &map.startY
 		, &thetaDegrees
 	);
-	map.startTheta = thetaDegrees * (PI/180);
+	map.startTheta = thetaDegrees * DTR;
 		
 	// Read map walls
 	fscanf(pMap, "%*[^\n]\n"); // Skip blank line
@@ -194,9 +195,9 @@ int main()
 	plr.y = map.startY;
 	plr.h = SQR_RATIO / 2;
 	plr.theta = map.startTheta;
-	plr.vTheta = 90*(PI/180);
+	plr.vTheta = 90 * DTR;
 	plr.speedMov = 0.1;
-	plr.speedTurn = 10 * (PI/180);
+	plr.speedTurn = 10 * DTR;
 	
 	// Set texture pack
 	struct texturePack tex;
@@ -241,14 +242,14 @@ int main()
 			fprintf(pLog, "eng.h,eng.w,eng.fov (°),eng.rendDist,eng.wallH\n");
 			fprintf(
 				pLog, "%d,%d,%f,%f,%f\n,\n"
-				, eng.h, eng.w, eng.fov*(180/PI), eng.rendDist, eng.wallH
+				, eng.h, eng.w, eng.fov * RTD, eng.rendDist, eng.wallH
 			);
 			
 			// Player info
 			fprintf(pLog, "plr.x,plr.y,plr.h,plr.theta (°),plr.vTheta (°)\n");
 			fprintf(
 				pLog, "%f,%f,%f,%f,%f\n,\n"
-				, plr.x, plr.y, plr.h, plr.theta*(180/PI), plr.vTheta*(180/PI)
+				, plr.x, plr.y, plr.h, plr.theta * RTD, plr.vTheta * RTD
 			);
 			
 			// Ray table header
@@ -397,8 +398,8 @@ int main()
 			{
 				fprintf(
 					pLog, "%d,%f,%f,%d,%d,%f,%f,%f,%f,%c\n"
-					, r, rayTheta*(180/PI), rayDist, wallX, wallY
-					, thetaWT*(180/PI), thetaWB*(180/PI), colT, colB, rayTex
+					, r, rayTheta * RTD, rayDist, wallX, wallY
+					, thetaWT * RTD, thetaWB * RTD, colT, colB, rayTex
 				);
 			}
 		}
@@ -614,7 +615,7 @@ int main()
 			(
 				"pos:(%5.2f,%5.2f) | theta:%3.0f%c | N:%c | m = menu | c = controls\n> "
 				, plr.x, plr.y
-				, plr.theta * (180/PI), 248 // Degree symbol
+				, plr.theta * RTD, 248 // Degree symbol
 				, northArrow(plr.theta)
 			);
 			

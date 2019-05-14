@@ -1,4 +1,4 @@
-/*	To do:
+/*	To-do:
 bug fixes
 	fix crashes
 		div by zero?
@@ -9,20 +9,23 @@ bug fixes
 		double check default colH?
 		
 general improvements
-	find better names for player thetas for hor and vert
-	move wallH to map struct
-	prevent edge drawing from bleeding into different walls
-	make the walls array dynamic?
-		so it isn't hardcoded to a certain size
-	implement render distance into LR/FB raycasting thing
-		to improve efficiency
-	move loading maps to a function
-		this way you can add loading maps as a menu option
-	fix funky column height curve at different vtheta, wallh, and plrh values
-		maybe vert col rays need some sort of aberation correction as well?
-	2nd frame buff array to store col info
-		raytex, wall position, etc
-	move commas between variables a line up in multiline printfs?
+	smaller
+		find better names for player thetas for hor and vert
+		move wallH to map struct
+		move commas between variables a line up in multiline printfs?
+	larger
+		prevent edge drawing from bleeding into different walls	
+		make the walls array dynamic?
+			so it isn't hardcoded to a certain size
+		implement render distance into LR/FB raycasting thing
+			to improve efficiency
+		move loading maps to a function
+			this way you can add loading maps as a menu option
+		fix funky column height curve at different vtheta, wallh, and plrh values
+			maybe vert col rays need some sort of aberation correction as well?
+		cast rays so they are spaced out evenly by wall dist, not by theta
+		2nd frame buff array to store col info
+			raytex, wall position, etc
 		
 new features
 	collision?
@@ -31,8 +34,8 @@ new features
 	full raycasting on vertical rays
 	be able to have walls that don't touch the floor
 		and be able to see walls underneath behind them
-	revamp UI engine
-	cast rays so they are spaced out evenly by wall dist, not by theta
+	be able to see top and bottom of walls?
+	new UI engine
 	settings file?
 */
 

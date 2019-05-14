@@ -10,8 +10,7 @@ bug fixes
 		
 general improvements
 	smaller
-		find better names for player thetas for hor and vert
-		move wallH to map struct
+>		find better names for player thetas for hor and vert
 		move commas between variables a line up in multiline printfs?
 	larger
 		prevent edge drawing from bleeding into different walls	
@@ -26,6 +25,10 @@ general improvements
 		cast rays so they are spaced out evenly by wall dist, not by theta
 		2nd frame buff array to store col info
 			raytex, wall position, etc
+		add to map struct
+			wallH
+			starting phi
+		dynamically calc square ratio constant?
 		
 new features
 	collision?
@@ -37,6 +40,10 @@ new features
 	be able to see top and bottom of walls?
 	new UI engine
 	settings file?
+	be able to look up and down
+		wrapping?
+			flip player around when phi is greater than 180deg?
+			or have it so your head is bent backwards and you can see walls upsideown lol
 */
 
 #include <stdio.h>
@@ -47,6 +54,7 @@ new features
 #define PI 3.14159265
 #define RTD 180/PI // Radians to degrees
 #define DTR PI/180 // Degrees to radians
+
 #define SQR_RATIO 1.908213 // Ratio to get visibly square walls on default console settings
 
 struct engineSettings
@@ -81,8 +89,8 @@ struct player
 	float y;
 	float h;
 	
-	float theta; // Radians
-	float vTheta;
+	float theta; // Horizontal angle in Radians
+	float phi;   // Vertical angle in Radians
 	
 	float speedMov;
 	float speedTurn;
@@ -198,7 +206,7 @@ int main()
 	plr.y = map.startY;
 	plr.h = SQR_RATIO / 2;
 	plr.theta = map.startTheta;
-	plr.vTheta = 90 * DTR;
+	plr.phi = 90 * DTR;
 	plr.speedMov = 0.1;
 	plr.speedTurn = 10 * DTR;
 	
@@ -249,15 +257,15 @@ int main()
 			);
 			
 			// Player info
-			fprintf(pLog, "plr.x,plr.y,plr.h,plr.theta (°),plr.vTheta (°)\n");
+			fprintf(pLog, "plr.x,plr.y,plr.h,plr.theta (°),plr.phi (°)\n");
 			fprintf(
 				pLog, "%f,%f,%f,%f,%f\n,\n"
-				, plr.x, plr.y, plr.h, plr.theta * RTD, plr.vTheta * RTD
+				, plr.x, plr.y, plr.h, plr.theta * RTD, plr.phi * RTD
 			);
 			
 			// Ray table header
 			fprintf(pLog, "Ray Table,\n");
-			fprintf(pLog, "r,rayTheta (°),rayDist,wallX,wallY,thetaWT (°),thetaWB (°),colT,colB,rayTex\n");
+			fprintf(pLog, "r,rayTheta (°),rayDist,wallX,wallY,phiWT (°),phiWB (°),colT,colB,rayTex\n");
 		}
 		
 		// Loop for each ray
@@ -346,8 +354,8 @@ int main()
 			}
 			
 			// Column height
-			float thetaWT = -1; // Init at -1 so we can detect if it's not touched
-			float thetaWB = -1;
+			float phiWT = -1; // Init at -1 so we can detect if it's not touched
+			float phiWB = -1;
 			float colT = eng.h / 2.0; // This might be wrong
 			float colB = eng.h / 2.0;
 			if (rayDist <= eng.rendDist) // Leave at 0 if past render distance
@@ -356,12 +364,12 @@ int main()
 				rayDist *= cos(plr.theta - rayTheta);
 			
 				// Find angles to Top and Bottom of wall
-				thetaWT = PI/2 + atan((eng.wallH-plr.h) / rayDist);
-				thetaWB = atan(rayDist / plr.h);
+				phiWT = PI/2 + atan((eng.wallH-plr.h) / rayDist);
+				phiWB = atan(rayDist / plr.h);
 				
 				// Find where the column should be placed on the screen	
-				colT = (plr.vTheta + eng.fov/2 - thetaWT)*(eng.h/eng.fov);
-				colB = (plr.vTheta + eng.fov/2 - thetaWB)*(eng.h/eng.fov);
+				colT = (plr.phi + eng.fov/2 - phiWT)*(eng.h/eng.fov);
+				colB = (plr.phi + eng.fov/2 - phiWB)*(eng.h/eng.fov);
 				
 				// Leaving this here as a tribute, since it never got to see the light of day :(
 				// colH = eng.h * ((2/PI)*atan(0.5 / rayDist) - (2/PI)*atan(2*rayDist) + 1);
@@ -402,7 +410,7 @@ int main()
 				fprintf(
 					pLog, "%d,%f,%f,%d,%d,%f,%f,%f,%f,%c\n"
 					, r, rayTheta * RTD, rayDist, wallX, wallY
-					, thetaWT * RTD, thetaWB * RTD, colT, colB, rayTex
+					, phiWT * RTD, phiWB * RTD, colT, colB, rayTex
 				);
 			}
 		}

@@ -10,8 +10,7 @@ bug fixes
 		
 general improvements
 	smaller
->		find better names for player thetas for hor and vert
-		move commas between variables a line up in multiline printfs?
+		
 	larger
 		prevent edge drawing from bleeding into different walls	
 		make the walls array dynamic?
@@ -32,6 +31,8 @@ general improvements
 		
 new features
 	collision?
+		prevent entering or tracing rays into negative map values
+			maybe allow but just cut off entering map array?
 	minimap!
 	supersampling would be cool!
 	full raycasting on vertical rays
@@ -600,8 +601,12 @@ int main()
 			int consoleW;
 			int consoleH;
 			scanf("%d %d", &consoleW, &consoleH);
+			
+			// Set 
 			eng.w = consoleW - 1; // Subtract 1 column so you don't get two newlines
 			eng.h = consoleH - 2; // Subtract 2 lines for UI
+			if (eng.w < 1) { eng.w = 1; }
+			if (eng.h < 1) { eng.h = 1; }
 			
 			// Return to main scene
 			input = ' ';

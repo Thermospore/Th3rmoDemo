@@ -4,15 +4,14 @@ bug fixes
 		div by zero?
 		cases when looking in a cardinal direction?
 	prevent OOB on map array
-	shit gets broken at render distance
-		only seems to be an issue with odd eng.h vals
-		double check default colH?
-		
+	
 general improvements
 	smaller
 		
 	larger
-		prevent edge drawing from bleeding into different walls	
+		prevent edge drawing from bleeding into different walls
+			maybe 2nd frame buff array to store col info
+				raytex, wall position, etc
 		make the walls array dynamic?
 			so it isn't hardcoded to a certain size
 		implement render distance into LR/FB raycasting thing
@@ -22,8 +21,6 @@ general improvements
 		fix funky column height curve at different vtheta, wallh, and plrh values
 			maybe vert col rays need some sort of aberation correction as well?
 		cast rays so they are spaced out evenly by wall dist, not by theta
-		2nd frame buff array to store col info
-			raytex, wall position, etc
 		add to map struct
 			wallH
 			starting phi
@@ -60,18 +57,18 @@ new features
 
 struct engineSettings
 {
-	int w;
-	int h;
+	int w; // # of columns rendered, not including UI
+	int h; // # of rows
 	
-	float fov; // Radians
-	
-	float rendDist;  // Walls cut off at this distance
-	
-	float wallH; // Should move to map...
+	float fov;      // Radians
+	float rendDist; // Walls cut off at this distance
+	float wallH;    // Height of walls
 };
 
 struct mapFile
 {
+	// 1 for box, 0 for no box
+	// No negative map positions
 	bool walls[50][50];
 	
 	// Used map area
@@ -86,29 +83,32 @@ struct mapFile
 
 struct player
 {
+	// Position in map
 	float x;
 	float y;
-	float h;
+	float h; // Height
 	
-	float theta; // Horizontal angle in Radians
-	float phi;   // Vertical angle in Radians
+	// Angles
+	float theta; // Hor ang in rad. 0deg = right, 90deg = forward
+	float phi;   // vert ang in rad. 0deg = straight down, 90deg = straight forward
 	
+	// Rates
 	float speedMov;
 	float speedTurn;
 };
 
 struct texturePack
 {
-	char WallLR;
-	char WallFB;
+	char WallLR;   // Left and Right walls
+	char WallFB;   // Front and Back walls
 	char Ceiling;
 	char Floor;
-	char Tran;
-	char TranNeg;
-	char TranPos;
-	char TranCcu;
-	char TranCcd;
-	char TranWall;
+	char Tran;     // When transitioning between texture types
+	char TranNeg;  // Negative slope
+	char TranPos;  // Pos slope
+	char TranCcu;  // Concave up
+	char TranCcd;  // Concave down
+	char TranWall; // Used on floor baseboard for when there is a different wall type adjacent
 };
 
 // Takes a theta value and gives you the direction of north
@@ -232,6 +232,7 @@ int main()
 	while (input != 'h')
 	{	
 		// Initialize screen buffer
+		// Y is 0 at top row! Sorta upside-down, I know
 		char frameBuf[eng.h + 1][eng.w]; // Using last row to store wall tex
 		for (int x = 0; x < eng.w; x++)
 		{
@@ -354,11 +355,14 @@ int main()
 				}
 			}
 			
-			// Column height
-			float phiWT = -1; // Init at -1 so we can detect if it's not touched
-			float phiWB = -1;
-			float colT = eng.h / 2.0; // This might be wrong
-			float colB = eng.h / 2.0;
+			
+			// Init column to just be the horizon, in case past ray dist
+			float phiWT = PI/2; // phi Wall Top, angle to the top of the wall
+			float phiWB = PI/2; // phi Wall Bottom
+			float colT = (plr.phi + eng.fov/2 - phiWT)*(eng.h/eng.fov); // Vertical pos of column ends in screen buffer
+			float colB = (plr.phi + eng.fov/2 - phiWB)*(eng.h/eng.fov);
+			
+			// Calculate column
 			if (rayDist <= eng.rendDist) // Leave at 0 if past render distance
 			{
 				// Adjust ray for aberration?
@@ -382,19 +386,19 @@ int main()
 			{
 				// Wall
 				if (
-					   y >= colT - 0.5
-					&& y <= colB - 0.5
+					   y > colT - 0.5
+					&& y < colB - 0.5
 				)
 				{
 					frameBuf[y][r] = rayTex;
 				}
 				// Floor
-				else if (y > colB - 0.5)
+				else if (y >= colB - 0.5)
 				{
 					frameBuf[y][r] = tex.Floor;
 				}
 				// Ceiling
-				else if (y < colT - 0.5)
+				else if (y <= colT - 0.5)
 				{
 					frameBuf[y][r] = tex.Ceiling;
 				}

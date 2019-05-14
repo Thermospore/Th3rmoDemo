@@ -4,11 +4,10 @@ bug fixes
 		div by zero?
 		cases when looking in a cardinal direction?
 	prevent OOB on map array
-	an extra random character sometimes sneaks in before the status bar?
+	shit gets broken at render distance
+		only seems to be an issue with odd eng.h vals
 	
 general improvements
-	adjust for ray abberation before or after rend dist check in colH fn?
-	update log dumping with new values
 	find better names for player thetas for hor and vert
 	double check default colH?
 	move wallH to map struct
@@ -21,6 +20,10 @@ general improvements
 		this way you can add loading maps as a menu option
 	fix funky column height curve at different vtheta, wallh, and plrh values
 		maybe vert col rays need some sort of aberation correction as well?
+	2nd frame buff array to store col info
+		raytex, wall position, etc
+	add a constant for rad to deg and deg to rad
+	move commas between variables a line up in multiline printfs?
 		
 new features
 	collision?
@@ -31,6 +34,7 @@ new features
 		and be able to see walls underneath behind them
 	revamp UI engine
 	cast rays so they are spaced out evenly by wall dist, not by theta
+	settings file?
 */
 
 #include <stdio.h>
@@ -234,22 +238,22 @@ int main()
 			pLog = fopen("log.csv", "w");
 			
 			// Engine info
-			fprintf(pLog, "eng.h,eng.w,eng.fov,\n");
+			fprintf(pLog, "eng.h,eng.w,eng.fov (°),eng.rendDist,eng.wallH\n");
 			fprintf(
-				pLog, "%d,%d,%f,\n,\n"
-				, eng.h, eng.w, eng.fov*(180/PI)
+				pLog, "%d,%d,%f,%f,%f\n,\n"
+				, eng.h, eng.w, eng.fov*(180/PI), eng.rendDist, eng.wallH
 			);
 			
 			// Player info
-			fprintf(pLog, "plr.x,plr.y,plr.theta,\n");
+			fprintf(pLog, "plr.x,plr.y,plr.h,plr.theta (°),plr.vTheta (°)\n");
 			fprintf(
-				pLog, "%f,%f,%f,\n,\n"
-				, plr.x, plr.y, plr.theta*(180/PI)
+				pLog, "%f,%f,%f,%f,%f\n,\n"
+				, plr.x, plr.y, plr.h, plr.theta*(180/PI), plr.vTheta*(180/PI)
 			);
 			
 			// Ray table header
 			fprintf(pLog, "Ray Table,\n");
-			fprintf(pLog, "#,theta,dist,colH,\n");
+			fprintf(pLog, "r,rayTheta (°),rayDist,wallX,wallY,thetaWT (°),thetaWB (°),colT,colB,rayTex\n");
 		}
 		
 		// Loop for each ray
@@ -338,23 +342,25 @@ int main()
 			}
 			
 			// Column height
+			float thetaWT = -1; // Init at -1 so we can detect if it's not touched
+			float thetaWB = -1;
 			float colT = eng.h / 2.0; // This might be wrong
 			float colB = eng.h / 2.0;
 			if (rayDist <= eng.rendDist) // Leave at 0 if past render distance
 			{
 				// Adjust ray for aberration?
-				rayDist *= cos(plr.theta - rayTheta); // before or after rend dist check?
-				
-				// Leaving this here as a tribute, since it never got to see the light of day :(
-			//	colH = eng.h * ((2/PI)*atan(0.5 / rayDist) - (2/PI)*atan(2*rayDist) + 1);
-				
+				rayDist *= cos(plr.theta - rayTheta);
+			
 				// Find angles to Top and Bottom of wall
-				float thetaWT = PI/2 + atan((eng.wallH-plr.h) / rayDist);
-				float thetaWB = atan(rayDist / plr.h);
+				thetaWT = PI/2 + atan((eng.wallH-plr.h) / rayDist);
+				thetaWB = atan(rayDist / plr.h);
 				
 				// Find where the column should be placed on the screen	
 				colT = (plr.vTheta + eng.fov/2 - thetaWT)*(eng.h/eng.fov);
 				colB = (plr.vTheta + eng.fov/2 - thetaWB)*(eng.h/eng.fov);
+				
+				// Leaving this here as a tribute, since it never got to see the light of day :(
+				// colH = eng.h * ((2/PI)*atan(0.5 / rayDist) - (2/PI)*atan(2*rayDist) + 1);
 			}
 			
 			// Store to frame buffer
@@ -386,12 +392,13 @@ int main()
 				}
 			}
 			
-			// Dump rays to log, if desired
+			// Possibly dump rays to log
 			if (input == 'd')
 			{
 				fprintf(
-					pLog, "%d,%f,%f,%f,\n"
-					, r, rayTheta*(180/PI), rayDist, colT-colB
+					pLog, "%d,%f,%f,%d,%d,%f,%f,%f,%f,%c\n"
+					, r, rayTheta*(180/PI), rayDist, wallX, wallY
+					, thetaWT*(180/PI), thetaWB*(180/PI), colT, colB, rayTex
 				);
 			}
 		}
@@ -515,11 +522,9 @@ int main()
 			for (int x = 0; x < eng.w; x++)
 			{
 				printBuf[x + lineOffset] = frameBuf[y][x];
-				//printf("%c", frameBuf[y][x]);
 			}
 			
 			printBuf[eng.w + lineOffset] = '\n';
-			//printf("\n");
 		}
 		
 		// Print frame. Only uses one printf. Much faster!

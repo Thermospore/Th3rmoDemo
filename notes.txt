@@ -1,3 +1,42 @@
+Improved rayTheta spacing
+	rayThetaDelta = rayTheta - plr.theta
+	tan(rayThetaDelta) = colRayDev / evenSpacingDist
+	colRayDev = (eng.w / 2.0) - (0.5 + ray#) // 2.0 because eng.w is an int! 2 would give wrong val if eng.w was odd
+	colRayDev = (eng.w / 2.0) - 0.5 - ray#
+	evenSD
+		tan(fov/2) = (eng.w / 2.0) / evenSD
+		evenSD = (eng.w / 2.0) / tan(fov/2)
+		evenSD = eng.w / (2 * tan(fov/2))
+	tan(rayThetaDelta) =
+		  ( (eng.w / 2.0) - 0.5 - ray# )
+		/ ( eng.w / (2 * tan(fov/2)) )
+	rayThetaDelta =
+		atan (
+			  ( (eng.w / 2.0) - 0.5 - ray# )
+			/ ( eng.w / (2 * tan(fov/2)) )
+		)
+	rayTheta = 
+		atan (
+			  ( (eng.w / 2.0) - 0.5 - ray# )
+			/ ( eng.w / (2 * tan(fov/2)) )
+		)
+		+ plr.theta
+		
+square wall ratio (at def settings)
+	resolution of a 1x1 wall?
+	fov 90 deg
+	dist 0.5
+	will fill whole screen
+	
+	eng.w = 80-1 = 79
+	eng.h = 25-2 = 23
+	charW = 10
+	charH = 18
+	
+	looking right at wall
+	pxW = 79 * 10 = 790
+	pxH = 23 * 18 = 414
+	
 Wall detection
 	per ray
 		start at plr

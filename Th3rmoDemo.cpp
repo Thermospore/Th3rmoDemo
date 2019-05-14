@@ -7,7 +7,7 @@ bug fixes
 	
 general improvements
 	smaller
-		
+		maybe use modf or fmod to get cell pos?
 	larger
 		prevent edge drawing from bleeding into different walls
 			maybe 2nd frame buff array to store col info
@@ -20,13 +20,17 @@ general improvements
 			this way you can add loading maps as a menu option
 		fix funky column height curve at different vtheta, wallh, and plrh values
 			maybe vert col rays need some sort of aberation correction as well?
-		cast rays so they are spaced out evenly by wall dist, not by theta
 		add to map struct
 			wallH
 			starting phi
 		dynamically calc square ratio constant?
+			based on eng hw, character hw etc
 		
 new features
+	cast phi rays so they are spaced out evenly by wall dist, not by theta
+		try envisioning it the way it actually is, with straight evenly spaced rays
+			rather than using trig ("ray abberation correction") to get there.
+			can extend screen up and down out from player "point" in desmos model?
 	collision?
 		prevent entering or tracing rays into negative map values
 			maybe allow but just cut off entering map array?
@@ -38,6 +42,8 @@ new features
 	be able to see top and bottom of walls?
 	new UI engine
 	settings file?
+	adjust vertical fov so it is square with horizontal fov?
+		derive from eng.h&w and console character h&w
 	be able to look up and down
 		wrapping?
 			flip player around when phi is greater than 180deg?
@@ -53,7 +59,8 @@ new features
 #define RTD 180/PI // Radians to degrees
 #define DTR PI/180 // Degrees to radians
 
-#define SQR_RATIO 1.908213 // Ratio to get visibly square walls on default console settings
+// Ratio to get visibly square walls on default console settings
+#define SQR_RATIO 1.908213/1.3 // Arbitrary temp adjustment until phi is fixed
 
 struct engineSettings
 {
@@ -271,12 +278,16 @@ int main()
 		}
 		
 		// Loop for each ray
-		float raySpacing = eng.fov / eng.w;
-		float rayStartTheta = plr.theta + (eng.fov / 2);
 		for (int r = 0; r < eng.w; r++)
 		{
 			// Find angle of ray
-			float rayTheta = rayStartTheta - (raySpacing / 2) - (raySpacing * r);
+			float rayTheta = (
+				atan(
+					  ( (eng.w / 2.0) - 0.5 - r )
+					/ ( eng.w / (2 * tan(eng.fov/2)) )
+				)
+				+ plr.theta
+			);
 			
 			// Wrap rayTheta
 			wrap(rayTheta);

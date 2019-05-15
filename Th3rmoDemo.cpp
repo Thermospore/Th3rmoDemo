@@ -6,6 +6,11 @@ bug fixes
 	prevent OOB on map array
 	
 general improvements
+	fix fovPhi calculation
+	add a tex for unknown col ray
+	clean up old colh stuff
+	uncapitalize tex names
+	work out better names for ray shit
 	prevent edge drawing from bleeding into different walls
 		maybe 2nd frame buff array to store col info
 			raytex, wall position, etc
@@ -16,12 +21,6 @@ general improvements
 	add to map struct
 		wallH
 		starting phi
-	cast phi rays so they are spaced out evenly where they hit a straight wall, not by theta
-		same thing I did for theta rays
-		try envisioning it the way it actually is, with straight evenly spaced rays
-			rather than using trig ("ray abberation correction") to get there.
-			can extend screen up and down out from player "point" in desmos model?
-		maybe just do brute raycasting rather than calculating angles and stuff
 		
 new features
 	be able to select a map from menu
@@ -288,7 +287,7 @@ int main()
 			fprintf(pLog, "r,rayTheta (°),rayDist,wallX,wallY,phiWT (°),phiWB (°),colT,colB,rayTex\n");
 		}
 		
-		// Loop for each ray
+		// Loop for each theta ray
 		for (int r = 0; r < eng.renW; r++)
 		{
 			// Find angle of ray
@@ -377,13 +376,61 @@ int main()
 				}
 			}
 			
+			// Note wall texture for edge function
+			frameBuf[eng.renH][r] = rayTex;
+			
+			// Adjust ray for aberration?
+			rayDist *= cos(plr.theta - rayTheta);
+			
+			// Loop for each phi ray
+			float rayHeight = 0;
+			for (int p = 0; p < eng.renH; p++)
+			{
+				// Find angle of ray
+				float rayPhi = (
+					atan(
+						  ( (eng.renH / 2.0) - 0.5 - p )
+						/ ( eng.renH / (2 * tan(eng.fovPhi/2)) )
+					)
+					+ plr.phi
+				);
+				
+				// Find wall collision height
+				rayHeight = plr.h - (rayDist / tan(rayPhi));
+				
+				// Write phi ray results to frame buffer
+				// Ceiling
+				if (rayHeight >= eng.wallH)
+				{
+					frameBuf[p][r] = tex.Ceiling;
+				}
+				// Floor
+				else if (rayHeight <= 0)
+				{
+					frameBuf[p][r] = tex.Floor;
+				}
+				// Wall
+				else if (
+					   rayHeight > 0
+					&& rayHeight < eng.wallH
+				)
+				{
+					frameBuf[p][r] = rayTex;
+				}
+				// Unknown
+				else
+				{
+					frameBuf[p][r] = '?';
+				}
+			}
+			
 			
 			// Init column to just be the horizon, in case past ray dist
 			float phiWT = PI/2; // phi Wall Top, angle to the top of the wall
 			float phiWB = PI/2; // phi Wall Bottom
 			float colT = (plr.phi + eng.fovPhi/2 - phiWT)*(eng.renH/eng.fovPhi); // Vertical pos of column ends in screen buffer
 			float colB = (plr.phi + eng.fovPhi/2 - phiWB)*(eng.renH/eng.fovPhi);
-			
+			/*
 			// Calculate column
 			if (rayDist <= eng.rendDist) // Leave at 0 if past render distance
 			{
@@ -430,6 +477,7 @@ int main()
 					frameBuf[y][r] = '?';
 				}
 			}
+			*/
 			
 			// Possibly dump rays to log
 			if (input == 'd')

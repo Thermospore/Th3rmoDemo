@@ -6,8 +6,6 @@ bug fixes
 	prevent OOB on map array
 	
 general improvements
-	move colT/B calc to a function
-	maybe use modf or fmod to get cell pos?
 	prevent edge drawing from bleeding into different walls
 		maybe 2nd frame buff array to store col info
 			raytex, wall position, etc
@@ -15,23 +13,19 @@ general improvements
 		so it isn't hardcoded to a certain size
 	implement render distance into LR/FB raycasting thing
 		to improve efficiency
-	move loading maps to a function
-		this way you can add loading maps as a menu option
-	fix funky column height curve at different vtheta, wallh, and plrh values
-		maybe vert col rays need some sort of aberation correction as well?
 	add to map struct
 		wallH
 		starting phi
-	dynamically calc square ratio constant?
-		based on eng hw, character hw etc
-	maybe move fov phi update to top of frame loop?
-	change res menu to actual res not character grid size!!!!
-		
-new features
-	cast phi rays so they are spaced out evenly by wall dist, not by theta
+	cast phi rays so they are spaced out evenly where they hit a straight wall, not by theta
+		same thing I did for theta rays
 		try envisioning it the way it actually is, with straight evenly spaced rays
 			rather than using trig ("ray abberation correction") to get there.
 			can extend screen up and down out from player "point" in desmos model?
+		maybe just do brute raycasting rather than calculating angles and stuff
+		
+new features
+	be able to select a map from menu
+		move loading maps to a function
 	collision?
 		prevent entering or tracing rays into negative map values
 			maybe allow but just cut off entering map array?
@@ -40,12 +34,13 @@ new features
 		scaling?
 		rotation?
 	supersampling would be cool!
-	full raycasting on vertical rays
-	be able to have walls that don't touch the floor
-		and be able to see walls underneath behind them
-	be able to see top and bottom of walls?
+	wall stuff
+		be able to have walls that don't touch the floor
+			and be able to see walls underneath behind them
+		be able to see top and underside of walls?
 	new UI engine
 	settings file?
+		maybe as a stop gap, add char var for menu subchoice
 	be able to look up and down
 		wrapping?
 			flip player around when phi is greater than 180deg?
@@ -320,8 +315,8 @@ int main()
 			// We check Front/Back and Left/Right walls separately
 			char rayTex = ' ';
 			
-			float cellX = plr.x - (int)plr.x; // Position in current cell
-			float cellY = plr.y - (int)plr.y;
+			float cellX = fmod(plr.x, 1); // Position in current cell
+			float cellY = fmod(plr.y, 1);
 			
 			float rayDist = 0;
 			float rayDistFB = (

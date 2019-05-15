@@ -6,25 +6,26 @@ bug fixes
 	prevent OOB on map array
 	
 general improvements
-	smaller
-		maybe use modf or fmod to get cell pos?
-	larger
-		prevent edge drawing from bleeding into different walls
-			maybe 2nd frame buff array to store col info
-				raytex, wall position, etc
-		make the walls array dynamic?
-			so it isn't hardcoded to a certain size
-		implement render distance into LR/FB raycasting thing
-			to improve efficiency
-		move loading maps to a function
-			this way you can add loading maps as a menu option
-		fix funky column height curve at different vtheta, wallh, and plrh values
-			maybe vert col rays need some sort of aberation correction as well?
-		add to map struct
-			wallH
-			starting phi
-		dynamically calc square ratio constant?
-			based on eng hw, character hw etc
+	move colT/B calc to a function
+	maybe use modf or fmod to get cell pos?
+	prevent edge drawing from bleeding into different walls
+		maybe 2nd frame buff array to store col info
+			raytex, wall position, etc
+	make the walls array dynamic?
+		so it isn't hardcoded to a certain size
+	implement render distance into LR/FB raycasting thing
+		to improve efficiency
+	move loading maps to a function
+		this way you can add loading maps as a menu option
+	fix funky column height curve at different vtheta, wallh, and plrh values
+		maybe vert col rays need some sort of aberation correction as well?
+	add to map struct
+		wallH
+		starting phi
+	dynamically calc square ratio constant?
+		based on eng hw, character hw etc
+	maybe move fov phi update to top of frame loop?
+	change res menu to actual res not character grid size!!!!
 		
 new features
 	cast phi rays so they are spaced out evenly by wall dist, not by theta
@@ -35,6 +36,9 @@ new features
 		prevent entering or tracing rays into negative map values
 			maybe allow but just cut off entering map array?
 	minimap!
+		use box drawing characters
+		scaling?
+		rotation?
 	supersampling would be cool!
 	full raycasting on vertical rays
 	be able to have walls that don't touch the floor
@@ -42,8 +46,6 @@ new features
 	be able to see top and bottom of walls?
 	new UI engine
 	settings file?
-	adjust vertical fov so it is square with horizontal fov?
-		derive from eng.h&w and console character h&w
 	be able to look up and down
 		wrapping?
 			flip player around when phi is greater than 180deg?
@@ -59,15 +61,19 @@ new features
 #define RTD 180/PI // Radians to degrees
 #define DTR PI/180 // Degrees to radians
 
-// Ratio to get visibly square walls on default console settings
-#define SQR_RATIO 1.908213/1.3 // Arbitrary temp adjustment until phi is fixed
-
 struct engineSettings
 {
-	int w; // # of columns rendered, not including UI
-	int h; // # of rows
+	// 3D render resolution, not including UI
+	int renW;
+	int renH;
 	
-	float fov;      // Radians
+	// Console font resolution
+	int fontH;
+	int fontW;
+	
+	float fov;      // Base horizontal FOV in rad
+	float fovPhi;   // Vertical FOV derived from hor FOV, eng h&w, and character h&w
+	
 	float rendDist; // Walls cut off at this distance
 	float wallH;    // Height of walls
 };
@@ -168,11 +174,14 @@ int main()
 {
 	// Initialize engine settings
 	struct engineSettings eng;
-	eng.w = 80 - 1; // Subtract 1 column so you don't get two newlines
-	eng.h = 25 - 2; // Subtract 2 lines for UI
+	eng.fontH = 18;
+	eng.fontW = 10;
+	eng.renW = 80 - 1; // Subtract 1 column so you don't get two newlines
+	eng.renH = 25 - 2; // Subtract 2 lines for UI
 	eng.fov = 90 * DTR;
+	eng.fovPhi; // We will recalculate this each frame, in case engine settings are changed
 	eng.rendDist = 50;
-	eng.wallH = SQR_RATIO;
+	eng.wallH = 1;
 	
 	// Define map and start to read it in
 	struct mapFile map;
@@ -212,7 +221,7 @@ int main()
 	struct player plr;
 	plr.x = map.startX;
 	plr.y = map.startY;
-	plr.h = SQR_RATIO / 2;
+	plr.h = eng.wallH / 2; // I'm arbitrarily placing the plr at this height for now
 	plr.theta = map.startTheta;
 	plr.phi = 90 * DTR;
 	plr.speedMov = 0.1;
@@ -240,14 +249,20 @@ int main()
 	{	
 		// Initialize screen buffer
 		// Y is 0 at top row! Sorta upside-down, I know
-		char frameBuf[eng.h + 1][eng.w]; // Using last row to store wall tex
-		for (int x = 0; x < eng.w; x++)
+		char frameBuf[eng.renH + 1][eng.renW]; // Using last row to store wall tex
+		for (int x = 0; x < eng.renW; x++)
 		{
-			for (int y = 0; y < eng.h + 1; y++)
+			for (int y = 0; y < eng.renH + 1; y++)
 			{
 				frameBuf[y][x] = ' ';
 			}
 		}
+		
+		// Calculate vertical FoV
+		eng.fovPhi = (
+			(eng.renH * eng.fontH * eng.fov)
+			/ (eng.renW * eng.fontW)
+		);
 	
 		// Wrap player theta
 		wrap(plr.theta);
@@ -259,10 +274,11 @@ int main()
 			pLog = fopen("log.csv", "w");
 			
 			// Engine info
-			fprintf(pLog, "eng.h,eng.w,eng.fov (°),eng.rendDist,eng.wallH\n");
+			fprintf(pLog, "eng.renH,eng.renW,eng.fontH,eng.fontW,eng.fov (°),eng.fovPhi (°),eng.rendDist,eng.wallH\n");
 			fprintf(
-				pLog, "%d,%d,%f,%f,%f\n,\n"
-				, eng.h, eng.w, eng.fov * RTD, eng.rendDist, eng.wallH
+				pLog, "%d,%d,%d,%d,%f,%f,%f,%f\n,\n"
+				, eng.renH, eng.renW, eng.fontH, eng.fontW
+				, eng.fov * RTD, eng.fovPhi * RTD, eng.rendDist, eng.wallH
 			);
 			
 			// Player info
@@ -278,13 +294,13 @@ int main()
 		}
 		
 		// Loop for each ray
-		for (int r = 0; r < eng.w; r++)
+		for (int r = 0; r < eng.renW; r++)
 		{
 			// Find angle of ray
 			float rayTheta = (
 				atan(
-					  ( (eng.w / 2.0) - 0.5 - r )
-					/ ( eng.w / (2 * tan(eng.fov/2)) )
+					  ( (eng.renW / 2.0) - 0.5 - r )
+					/ ( eng.renW / (2 * tan(eng.fov/2)) )
 				)
 				+ plr.theta
 			);
@@ -370,8 +386,8 @@ int main()
 			// Init column to just be the horizon, in case past ray dist
 			float phiWT = PI/2; // phi Wall Top, angle to the top of the wall
 			float phiWB = PI/2; // phi Wall Bottom
-			float colT = (plr.phi + eng.fov/2 - phiWT)*(eng.h/eng.fov); // Vertical pos of column ends in screen buffer
-			float colB = (plr.phi + eng.fov/2 - phiWB)*(eng.h/eng.fov);
+			float colT = (plr.phi + eng.fovPhi/2 - phiWT)*(eng.renH/eng.fovPhi); // Vertical pos of column ends in screen buffer
+			float colB = (plr.phi + eng.fovPhi/2 - phiWB)*(eng.renH/eng.fovPhi);
 			
 			// Calculate column
 			if (rayDist <= eng.rendDist) // Leave at 0 if past render distance
@@ -384,16 +400,16 @@ int main()
 				phiWB = atan(rayDist / plr.h);
 				
 				// Find where the column should be placed on the screen	
-				colT = (plr.phi + eng.fov/2 - phiWT)*(eng.h/eng.fov);
-				colB = (plr.phi + eng.fov/2 - phiWB)*(eng.h/eng.fov);
+				colT = (plr.phi + eng.fovPhi/2 - phiWT)*(eng.renH/eng.fovPhi);
+				colB = (plr.phi + eng.fovPhi/2 - phiWB)*(eng.renH/eng.fovPhi);
 				
 				// Leaving this here as a tribute, since it never got to see the light of day :(
-				// colH = eng.h * ((2/PI)*atan(0.5 / rayDist) - (2/PI)*atan(2*rayDist) + 1);
+				// colH = eng.renH * ((2/PI)*atan(0.5 / rayDist) - (2/PI)*atan(2*rayDist) + 1);
 			}
 			
 			// Store to frame buffer
-			frameBuf[eng.h][r] = rayTex; // Note wall texture for edge function
-			for (int y = 0; y < eng.h; y++)
+			frameBuf[eng.renH][r] = rayTex; // Note wall texture for edge function
+			for (int y = 0; y < eng.renH; y++)
 			{
 				// Wall
 				if (
@@ -432,34 +448,34 @@ int main()
 		}
 		
 		// Draw edges
-		for (int x = 0; x < eng.w; x++)
+		for (int x = 0; x < eng.renW; x++)
 		{
 			// Wall tex for this column
-			char colTex = frameBuf[eng.h][x];
+			char colTex = frameBuf[eng.renH][x];
 			
 			// Wall tex left column
 			char colTexL = colTex;
 			if (x >= 1) // OOB prevention
-			{ colTexL = frameBuf[eng.h][x-1]; }
+			{ colTexL = frameBuf[eng.renH][x-1]; }
 			
 			// Wall tex right column
 			char colTexR = colTex;
-			if (x <= eng.w - 2) // OOB prevention
-			{ colTexR = frameBuf[eng.h][x+1]; }
+			if (x <= eng.renW - 2) // OOB prevention
+			{ colTexR = frameBuf[eng.renH][x+1]; }
 			
-			for (int y = 0; y < eng.h; y++)
+			for (int y = 0; y < eng.renH; y++)
 			{
 				// Ceiling trans
 				if (
 					   frameBuf[y  ][x  ] == tex.Ceiling
-					&& y + 1 < eng.h // OOB prevention
+					&& y + 1 < eng.renH // OOB prevention
 					&& frameBuf[y+1][x  ] == colTex
 				)
 				{
 					// OOB prevention
 					if (
 						   x == 0
-						|| x == eng.w - 1
+						|| x == eng.renW - 1
 					)
 					{
 						frameBuf[y][x] = tex.Tran;
@@ -498,7 +514,7 @@ int main()
 					// OOB prevention
 					if (
 						   x == 0
-						|| x == eng.w - 1
+						|| x == eng.renW - 1
 					)
 					{
 						frameBuf[y][x] = tex.Tran;
@@ -539,20 +555,20 @@ int main()
 		
 		// Pile frame buffer into a single string
 		//                 ((Line + \n) * #lines) + \0
-		int printBufSize = ((eng.w + 1) * eng.h) + 1;
+		int printBufSize = ((eng.renW + 1) * eng.renH) + 1;
 		char printBuf[printBufSize];
 		printBuf[printBufSize-1] = '\0'; // End of string character
 		
-		for (int y = 0; y < eng.h; y++)
+		for (int y = 0; y < eng.renH; y++)
 		{
-			int lineOffset = y * (eng.w + 1);
+			int lineOffset = y * (eng.renW + 1);
 			
-			for (int x = 0; x < eng.w; x++)
+			for (int x = 0; x < eng.renW; x++)
 			{
 				printBuf[x + lineOffset] = frameBuf[y][x];
 			}
 			
-			printBuf[eng.w + lineOffset] = '\n';
+			printBuf[eng.renW + lineOffset] = '\n';
 		}
 		
 		// Print frame. Only uses one printf. Much faster!
@@ -610,18 +626,18 @@ int main()
 		else if (input == 'r')
 		{
 			// Status Bar
-			printf("Enter console res (\"[w] [h]\")\n>" );
+			printf("Enter \"[console W] [console H] [font W] [font H]\"\n>" );
 			
 			// Get input
 			int consoleW;
 			int consoleH;
-			scanf("%d %d", &consoleW, &consoleH);
+			scanf("%d %d %d %d", &consoleW, &consoleH, &eng.fontW, &eng.fontH);
 			
-			// Set 
-			eng.w = consoleW - 1; // Subtract 1 column so you don't get two newlines
-			eng.h = consoleH - 2; // Subtract 2 lines for UI
-			if (eng.w < 1) { eng.w = 1; }
-			if (eng.h < 1) { eng.h = 1; }
+			// Set render resolution
+			eng.renW = consoleW - 1; // Subtract 1 column so you don't get two newlines
+			eng.renH = consoleH - 2; // Subtract 2 lines for UI
+			if (eng.renW < 1) { eng.renW = 1; }
+			if (eng.renH < 1) { eng.renH = 1; }
 			
 			// Return to main scene
 			input = ' ';

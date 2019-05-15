@@ -22,20 +22,9 @@ Improved rayTheta spacing
 		)
 		+ plr.theta
 		
-square wall ratio (at def settings)
-	resolution of a 1x1 wall?
-	fov 90 deg
-	dist 0.5
-	will fill whole screen
-	
-	eng.w = 80-1 = 79
-	eng.h = 25-2 = 23
-	charW = 10
-	charH = 18
-	
-	looking right at wall
-	pxW = 79 * 10 = 790
-	pxH = 23 * 18 = 414
+Separate FOV for phi
+	fovPhi/fov = (eng.h * charH) / (eng.w * charW)
+	fovPhi = (eng.h * charH * fov) / (eng.w * charW)
 	
 Wall detection
 	per ray

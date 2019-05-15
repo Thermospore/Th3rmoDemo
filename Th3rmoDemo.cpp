@@ -6,9 +6,9 @@ bug fixes
 	prevent OOB on map array
 	
 general improvements
-	add a tex for unknown col ray
-	clean up old colh stuff
-	uncapitalize tex names
+	tex stuff
+		add a tex for unknown col ray
+		uncapitalize tex names
 	work out better names for ray shit
 	prevent edge drawing from bleeding into different walls
 		maybe 2nd frame buff array to store col info
@@ -17,7 +17,7 @@ general improvements
 		so it isn't hardcoded to a certain size
 	implement render distance into LR/FB raycasting thing
 		to improve efficiency
-	add to map struct
+	move to map struct
 		wallH
 		starting phi
 		
@@ -27,6 +27,8 @@ new features
 	collision?
 		prevent entering or tracing rays into negative map values
 			maybe allow but just cut off entering map array?
+			when in negative map, use sign of tangent
+				to tell if you will be able to cast rays to positive map values
 	minimap!
 		use box drawing characters
 		scaling?
@@ -214,9 +216,9 @@ int main()
 	struct player plr;
 	plr.x = map.startX;
 	plr.y = map.startY;
-	plr.h = eng.wallH / 2; // I'm arbitrarily placing the plr at this height for now
+	plr.h = 0.5;
 	plr.theta = map.startTheta;
-	plr.phi = 90 * DTR;
+	plr.phi = PI/2; // Stuff gets curvy at different phi values...
 	plr.speedMov = 0.1;
 	plr.speedTurn = 10 * DTR;
 	
@@ -286,7 +288,7 @@ int main()
 			
 			// Ray table header
 			fprintf(pLog, "Ray Table,\n");
-			fprintf(pLog, "r,rayTheta (°),rayDist,wallX,wallY,phiWT (°),phiWB (°),colT,colB,rayTex\n");
+			fprintf(pLog, "r,rayTheta (°),rayDist,wallX,wallY,colT,colB,rayTex\n");
 		}
 		
 		// Loop for each theta ray
@@ -381,7 +383,7 @@ int main()
 			// Note wall texture for edge function
 			frameBuf[eng.renH][r] = rayTex;
 			
-			// Adjust ray for aberration?
+			// Adjust ray for aberration
 			rayDist *= cos(plr.theta - rayTheta);
 			
 			// Loop for each phi ray
@@ -425,69 +427,35 @@ int main()
 					frameBuf[p][r] = '?';
 				}
 			}
-			
-			
-			// Init column to just be the horizon, in case past ray dist
-			float phiWT = PI/2; // phi Wall Top, angle to the top of the wall
-			float phiWB = PI/2; // phi Wall Bottom
-			float colT = (plr.phi + eng.fovPhi/2 - phiWT)*(eng.renH/eng.fovPhi); // Vertical pos of column ends in screen buffer
-			float colB = (plr.phi + eng.fovPhi/2 - phiWB)*(eng.renH/eng.fovPhi);
-			/*
-			// Calculate column
-			if (rayDist <= eng.rendDist) // Leave at 0 if past render distance
-			{
-				// Adjust ray for aberration?
-				rayDist *= cos(plr.theta - rayTheta);
-			
-				// Find angles to Top and Bottom of wall
-				phiWT = PI/2 + atan((eng.wallH-plr.h) / rayDist);
-				phiWB = atan(rayDist / plr.h);
-				
-				// Find where the column should be placed on the screen	
-				colT = (plr.phi + eng.fovPhi/2 - phiWT)*(eng.renH/eng.fovPhi);
-				colB = (plr.phi + eng.fovPhi/2 - phiWB)*(eng.renH/eng.fovPhi);
-				
-				// Leaving this here as a tribute, since it never got to see the light of day :(
-				// colH = eng.renH * ((2/PI)*atan(0.5 / rayDist) - (2/PI)*atan(2*rayDist) + 1);
-			}
-			
-			// Store to frame buffer
-			frameBuf[eng.renH][r] = rayTex; // Note wall texture for edge function
-			for (int y = 0; y < eng.renH; y++)
-			{
-				// Wall
-				if (
-					   y > colT - 0.5
-					&& y < colB - 0.5
-				)
-				{
-					frameBuf[y][r] = rayTex;
-				}
-				// Floor
-				else if (y >= colB - 0.5)
-				{
-					frameBuf[y][r] = tex.Floor;
-				}
-				// Ceiling
-				else if (y <= colT - 0.5)
-				{
-					frameBuf[y][r] = tex.Ceiling;
-				}
-				// Unknown case
-				else
-				{
-					frameBuf[y][r] = '?';
-				}
-			}
-			*/
-			
+						
 			// Possibly dump rays to log
 			if (input == 'd')
 			{
+				// Find top and bottom of columns
+				int colT = 0;
+				int colB = eng.renH - 1;
+				for (int p = 1; p < eng.renH - 1; p++)
+				{
+					// Column Top
+					if (
+						   frameBuf[p  ][r] == rayTex
+						&& frameBuf[p-1][r] == tex.Ceiling
+					)
+					{ colT = p; }
+					
+					// Column Bottom
+					if (
+						   frameBuf[p  ][r] == rayTex
+						&& frameBuf[p+1][r] == tex.Floor
+					)
+					{ colB = p; }
+				}
+				
+				// Print Ray info
 				fprintf(
-					pLog, "%d,%f,%f,%d,%d,%f,%f,%f,%f,%c\n"
+					pLog, "%d,%f,%f,%d,%d,%d,%d,%c\n"
 					, r, rayTheta * RTD, rayDist, wallX, wallY
-					, phiWT * RTD, phiWB * RTD, colT, colB, rayTex
+					, colT, colB, rayTex
 				);
 			}
 		}

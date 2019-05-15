@@ -6,7 +6,6 @@ bug fixes
 	prevent OOB on map array
 	
 general improvements
-	fix fovPhi calculation
 	add a tex for unknown col ray
 	clean up old colh stuff
 	uncapitalize tex names
@@ -252,10 +251,13 @@ int main()
 			}
 		}
 		
-		// Calculate vertical FoV
+		// Update vertical FoV
 		eng.fovPhi = (
-			(eng.renH * eng.fontH * eng.fov)
-			/ (eng.renW * eng.fontW)
+			2
+			* atan(
+				  (eng.renH * eng.fontH * tan(eng.fov/2))
+				/ (eng.renW * eng.fontW)
+			)
 		);
 	
 		// Wrap player theta

@@ -6,29 +6,29 @@ bug fixes
 	prevent OOB on map array
 	
 general improvements
+	map stuff
+		map selection
+			show current map name in selection menu
+			maybe list available maps?
+			prevent entering non existant or invalid maps
+			not requre entering ".map"
+		make the walls array dynamic?
+			so it isn't hardcoded to a certain size
+		add starting movement speed to struct
+	work out better names for ray shit
+		maybe a ray struct
 	prevent edge drawing from bleeding into different walls
 		maybe 2nd frame buff array to store col info
 			raytex, wall position, etc
-	make the walls array dynamic?
-		so it isn't hardcoded to a certain size
 	implement render distance into LR/FB raycasting thing
 		to improve efficiency
-	add to map struct
-		wallH
-		starting phi
-	cast phi rays so they are spaced out evenly where they hit a straight wall, not by theta
-		same thing I did for theta rays
-		try envisioning it the way it actually is, with straight evenly spaced rays
-			rather than using trig ("ray abberation correction") to get there.
-			can extend screen up and down out from player "point" in desmos model?
-		maybe just do brute raycasting rather than calculating angles and stuff
 		
 new features
-	be able to select a map from menu
-		move loading maps to a function
 	collision?
 		prevent entering or tracing rays into negative map values
 			maybe allow but just cut off entering map array?
+			when in negative map, use sign of tangent
+				to tell if you will be able to cast rays to positive map values
 	minimap!
 		use box drawing characters
 		scaling?
@@ -39,8 +39,8 @@ new features
 			and be able to see walls underneath behind them
 		be able to see top and underside of walls?
 	new UI engine
-	settings file?
 		maybe as a stop gap, add char var for menu subchoice
+	settings file?
 	be able to look up and down
 		wrapping?
 			flip player around when phi is greater than 180deg?
@@ -58,35 +58,32 @@ new features
 
 struct engineSettings
 {
-	// 3D render resolution, not including UI
-	int renW;
+	// Resolution
+	int renW;       // 3D render resolution, not including UI
 	int renH;
-	
-	// Console font resolution
-	int fontH;
+	int fontH;      // Console font resolution
 	int fontW;
 	
+	// Visibility
 	float fov;      // Base horizontal FOV in rad
 	float fovPhi;   // Vertical FOV derived from hor FOV, eng h&w, and character h&w
-	
 	float rendDist; // Walls cut off at this distance
-	float wallH;    // Height of walls
 };
 
 struct mapFile
 {
-	// 1 for box, 0 for no box
-	// No negative map positions
-	bool walls[50][50];
-	
-	// Used map area
-	int sizeY;
+	// Map
+	bool walls[150][150]; // 1 for box, 0 for no box
+	float wallH; // Height of walls
+	int sizeY;   // Size of map
 	int sizeX;
 	
 	// Player starting conditions
 	float startX;
 	float startY;
+	float startH;
 	float startTheta; // Radians
+	float startPhi;
 };
 
 struct player
@@ -107,16 +104,17 @@ struct player
 
 struct texturePack
 {
-	char WallLR;   // Left and Right walls
-	char WallFB;   // Front and Back walls
-	char Ceiling;
-	char Floor;
-	char Tran;     // When transitioning between texture types
-	char TranNeg;  // Negative slope
-	char TranPos;  // Pos slope
-	char TranCcu;  // Concave up
-	char TranCcd;  // Concave down
-	char TranWall; // Used on floor baseboard for when there is a different wall type adjacent
+	char wallLR;   // Left and Right walls
+	char wallFB;   // Front and Back walls
+	char ceiling;
+	char floor;
+	char tran;     // When transitioning between texture types
+	char tranNeg;  // Negative slope
+	char tranPos;  // Pos slope
+	char tranCcu;  // Concave up
+	char tranCcd;  // Concave down
+	char tranWall; // Used on floor baseboard for when there is a different wall type adjacent
+	char unknown;  // Used when you don't know what the hell is going on
 };
 
 // Takes a theta value and gives you the direction of north
@@ -165,33 +163,25 @@ float wrap(float &theta)
 	return theta;
 }
 
-int main()
+// Reads in a map file, places the player in it, and returns the map file
+struct mapFile readMap(const char* mapName, struct player* plr)
 {
-	// Initialize engine settings
-	struct engineSettings eng;
-	eng.fontH = 18;
-	eng.fontW = 10;
-	eng.renW = 80 - 1; // Subtract 1 column so you don't get two newlines
-	eng.renH = 25 - 2; // Subtract 2 lines for UI
-	eng.fov = 90 * DTR;
-	eng.fovPhi; // We will recalculate this each frame, in case engine settings are changed
-	eng.rendDist = 50;
-	eng.wallH = 1;
-	
-	// Define map and start to read it in
+	// Define mapFile struct and start to read it in
 	struct mapFile map;
-	FILE* pMap = fopen("default.map", "r");
+	FILE* pMap = fopen(mapName, "r");
 	fscanf(pMap, "%*[^\n]\n"); // Skip header
 	
 	// Read map meta data
 	float thetaDegrees = 0; // We will convert theta to radians
+	float phiDegrees   = 0;
 	fscanf(
-		pMap, "%d,%d,%f,%f,%f%*[^\n]\n"
-		, &map.sizeX, &map.sizeY
-		, &map.startX, &map.startY
-		, &thetaDegrees
+		pMap, "%d,%d,%f,%f,%f,%f,%f,%f%*[^\n]\n"
+		, &map.sizeX, &map.sizeY, &map.wallH
+		, &map.startX, &map.startY,  &map.startH
+		, &thetaDegrees, &phiDegrees
 	);
 	map.startTheta = thetaDegrees * DTR;
+	map.startPhi   = phiDegrees   * DTR;
 		
 	// Read map walls
 	fscanf(pMap, "%*[^\n]\n"); // Skip blank line
@@ -212,28 +202,48 @@ int main()
 	}
 	fclose(pMap);
 	
-	// Place player in map and set attributes
+	// Place player in map
+	plr->x = map.startX;
+	plr->y = map.startY;
+	plr->h = map.startH;
+	plr->theta = map.startTheta;
+	plr->phi   = map.startPhi;
+
+	return map;
+}
+
+int main()
+{
+	// Initialize engine settings
+	struct engineSettings eng;
+	eng.fontH = 18;
+	eng.fontW = 10;
+	eng.renW = 80 - 1; // Subtract 1 column so you don't get two newlines
+	eng.renH = 25 - 2; // Subtract 2 lines for UI
+	eng.fov = 90 * DTR;
+	eng.fovPhi; // We will recalculate this each frame, in case engine settings are changed
+	eng.rendDist = 50;
+	
+	// Set player atributes
 	struct player plr;
-	plr.x = map.startX;
-	plr.y = map.startY;
-	plr.h = eng.wallH / 2; // I'm arbitrarily placing the plr at this height for now
-	plr.theta = map.startTheta;
-	plr.phi = 90 * DTR;
 	plr.speedMov = 0.1;
 	plr.speedTurn = 10 * DTR;
 	
+	// Read default map and place the player in it
+	struct mapFile map = readMap("default.map", &plr);
+		
 	// Set texture pack
 	struct texturePack tex;
-	tex.WallLR  = '#';
-	tex.WallFB  = '7';
-	tex.Ceiling = ' ';
-	tex.Floor   = '.';
-	tex.Tran    = '_';
-	tex.TranNeg = '\\';
-	tex.TranPos = '/';
-	tex.TranCcu = 'V';
-	tex.TranCcd = '^';
-	tex.TranWall= 'L';
+	tex.wallLR  = '#';
+	tex.wallFB  = '7';
+	tex.ceiling = ' ';
+	tex.floor   = '.';
+	tex.tran    = '_';
+	tex.tranNeg = '\\';
+	tex.tranPos = '/';
+	tex.tranCcu = 'V';
+	tex.tranCcd = '^';
+	tex.tranWall= 'L';
 	
 	// Declare pointer to log file (only used when dumping)
 	FILE* pLog;
@@ -253,10 +263,13 @@ int main()
 			}
 		}
 		
-		// Calculate vertical FoV
+		// Update vertical FoV
 		eng.fovPhi = (
-			(eng.renH * eng.fontH * eng.fov)
-			/ (eng.renW * eng.fontW)
+			2
+			* atan(
+				  (eng.renH * eng.fontH * tan(eng.fov/2))
+				/ (eng.renW * eng.fontW)
+			)
 		);
 	
 		// Wrap player theta
@@ -273,7 +286,7 @@ int main()
 			fprintf(
 				pLog, "%d,%d,%d,%d,%f,%f,%f,%f\n,\n"
 				, eng.renH, eng.renW, eng.fontH, eng.fontW
-				, eng.fov * RTD, eng.fovPhi * RTD, eng.rendDist, eng.wallH
+				, eng.fov * RTD, eng.fovPhi * RTD, eng.rendDist, map.wallH
 			);
 			
 			// Player info
@@ -285,10 +298,10 @@ int main()
 			
 			// Ray table header
 			fprintf(pLog, "Ray Table,\n");
-			fprintf(pLog, "r,rayTheta (°),rayDist,wallX,wallY,phiWT (°),phiWB (°),colT,colB,rayTex\n");
+			fprintf(pLog, "r,rayTheta (°),rayDist,wallX,wallY,colT,colB,rayTex\n");
 		}
 		
-		// Loop for each ray
+		// Loop for each theta ray
 		for (int r = 0; r < eng.renW; r++)
 		{
 			// Find angle of ray
@@ -341,7 +354,7 @@ int main()
 				if (rayDistFB < rayDistLR)
 				{
 					rayDist = rayDistFB;
-					rayTex = tex.WallFB;
+					rayTex = tex.wallFB;
 					
 					wallY = (int)plr.y + (wallNFB+1) * sgn(sin(rayTheta)); // F and B equations merged
 					wallX = (int)(plr.x + rayDist * cos(rayTheta)); // F and B were the same
@@ -360,7 +373,7 @@ int main()
 				else
 				{
 					rayDist = rayDistLR;
-					rayTex = tex.WallLR;
+					rayTex = tex.wallLR;
 					
 					wallX = (int)plr.x + (wallNLR+1) * sgn(cos(rayTheta)); // L and R equations merged
 					wallY = (int)(plr.y + rayDist * sin(rayTheta)); // L and R were the same
@@ -377,67 +390,82 @@ int main()
 				}
 			}
 			
+			// Note wall texture for edge function
+			frameBuf[eng.renH][r] = rayTex;
 			
-			// Init column to just be the horizon, in case past ray dist
-			float phiWT = PI/2; // phi Wall Top, angle to the top of the wall
-			float phiWB = PI/2; // phi Wall Bottom
-			float colT = (plr.phi + eng.fovPhi/2 - phiWT)*(eng.renH/eng.fovPhi); // Vertical pos of column ends in screen buffer
-			float colB = (plr.phi + eng.fovPhi/2 - phiWB)*(eng.renH/eng.fovPhi);
+			// Adjust ray for aberration
+			rayDist *= cos(plr.theta - rayTheta);
 			
-			// Calculate column
-			if (rayDist <= eng.rendDist) // Leave at 0 if past render distance
+			// Loop for each phi ray
+			float rayHeight = 0;
+			for (int p = 0; p < eng.renH; p++)
 			{
-				// Adjust ray for aberration?
-				rayDist *= cos(plr.theta - rayTheta);
-			
-				// Find angles to Top and Bottom of wall
-				phiWT = PI/2 + atan((eng.wallH-plr.h) / rayDist);
-				phiWB = atan(rayDist / plr.h);
+				// Find angle of ray
+				float rayPhi = (
+					atan(
+						  ( (eng.renH / 2.0) - 0.5 - p )
+						/ ( eng.renH / (2 * tan(eng.fovPhi/2)) )
+					)
+					+ plr.phi
+				);
 				
-				// Find where the column should be placed on the screen	
-				colT = (plr.phi + eng.fovPhi/2 - phiWT)*(eng.renH/eng.fovPhi);
-				colB = (plr.phi + eng.fovPhi/2 - phiWB)*(eng.renH/eng.fovPhi);
+				// Find wall collision height
+				rayHeight = plr.h - (rayDist / tan(rayPhi));
 				
-				// Leaving this here as a tribute, since it never got to see the light of day :(
-				// colH = eng.renH * ((2/PI)*atan(0.5 / rayDist) - (2/PI)*atan(2*rayDist) + 1);
-			}
-			
-			// Store to frame buffer
-			frameBuf[eng.renH][r] = rayTex; // Note wall texture for edge function
-			for (int y = 0; y < eng.renH; y++)
-			{
-				// Wall
-				if (
-					   y > colT - 0.5
-					&& y < colB - 0.5
-				)
+				// Write phi ray results to frame buffer
+				// Ceiling
+				if (rayHeight >= map.wallH)
 				{
-					frameBuf[y][r] = rayTex;
+					frameBuf[p][r] = tex.ceiling;
 				}
 				// Floor
-				else if (y >= colB - 0.5)
+				else if (rayHeight <= 0)
 				{
-					frameBuf[y][r] = tex.Floor;
+					frameBuf[p][r] = tex.floor;
 				}
-				// Ceiling
-				else if (y <= colT - 0.5)
+				// Wall
+				else if (
+					   rayHeight > 0
+					&& rayHeight < map.wallH
+				)
 				{
-					frameBuf[y][r] = tex.Ceiling;
+					frameBuf[p][r] = rayTex;
 				}
-				// Unknown case
+				// Unknown
 				else
 				{
-					frameBuf[y][r] = '?';
+					frameBuf[p][r] = tex.unknown;
 				}
 			}
-			
+						
 			// Possibly dump rays to log
 			if (input == 'd')
 			{
+				// Find top and bottom of columns
+				int colT = 0;
+				int colB = eng.renH - 1;
+				for (int p = 1; p < eng.renH - 1; p++)
+				{
+					// Column Top
+					if (
+						   frameBuf[p  ][r] == rayTex
+						&& frameBuf[p-1][r] == tex.ceiling
+					)
+					{ colT = p; }
+					
+					// Column Bottom
+					if (
+						   frameBuf[p  ][r] == rayTex
+						&& frameBuf[p+1][r] == tex.floor
+					)
+					{ colB = p; }
+				}
+				
+				// Print Ray info
 				fprintf(
-					pLog, "%d,%f,%f,%d,%d,%f,%f,%f,%f,%c\n"
+					pLog, "%d,%f,%f,%d,%d,%d,%d,%c\n"
 					, r, rayTheta * RTD, rayDist, wallX, wallY
-					, phiWT * RTD, phiWB * RTD, colT, colB, rayTex
+					, colT, colB, rayTex
 				);
 			}
 		}
@@ -462,7 +490,7 @@ int main()
 			{
 				// Ceiling trans
 				if (
-					   frameBuf[y  ][x  ] == tex.Ceiling
+					   frameBuf[y  ][x  ] == tex.ceiling
 					&& y + 1 < eng.renH // OOB prevention
 					&& frameBuf[y+1][x  ] == colTex
 				)
@@ -473,7 +501,7 @@ int main()
 						|| x == eng.renW - 1
 					)
 					{
-						frameBuf[y][x] = tex.Tran;
+						frameBuf[y][x] = tex.tran;
 					}
 					// Concave up trans
 					else if (
@@ -481,27 +509,27 @@ int main()
 						&& frameBuf[y  ][x+1] == colTexR
 					)
 					{
-						frameBuf[y][x] = tex.TranCcu;
+						frameBuf[y][x] = tex.tranCcu;
 					}
 					// Neg trans
 					else if (frameBuf[y  ][x-1] == colTexL)
 					{
-						frameBuf[y][x] = tex.TranNeg;
+						frameBuf[y][x] = tex.tranNeg;
 					}
 					// Pos trans
 					else if (frameBuf[y  ][x+1] == colTexR)
 					{
-						frameBuf[y][x] = tex.TranPos;
+						frameBuf[y][x] = tex.tranPos;
 					}
 					// Normal case
 					else
 					{
-						frameBuf[y][x] = tex.Tran;
+						frameBuf[y][x] = tex.tran;
 					}
 				}
 				// Floor trans
 				else if (
-					   frameBuf[y  ][x  ] == tex.Floor
+					   frameBuf[y  ][x  ] == tex.floor
 					&& y - 1 >= 0 // OOB prevention
 					&& frameBuf[y-1][x  ] == colTex
 				)
@@ -512,37 +540,37 @@ int main()
 						|| x == eng.renW - 1
 					)
 					{
-						frameBuf[y][x] = tex.Tran;
+						frameBuf[y][x] = tex.tran;
 					}
 					// Concave up
 					else if (
 						frameBuf[y-1][x+1] != colTexR
 						&& (
-							   frameBuf[y-1][x-1] == tex.Tran
-							|| frameBuf[y-1][x-1] == tex.TranNeg
+							   frameBuf[y-1][x-1] == tex.tran
+							|| frameBuf[y-1][x-1] == tex.tranNeg
 						)
 					)
 					{
-						frameBuf[y][x] = tex.TranCcu;
+						frameBuf[y][x] = tex.tranCcu;
 					}
 					// Pos trans
 					else if (frameBuf[y-1][x+1] != colTexR)
 					{
-						frameBuf[y][x] = tex.TranPos;
+						frameBuf[y][x] = tex.tranPos;
 					}
 					// Neg trans
 					else if (frameBuf[y-1][x-1] != colTexL)
 					{
-						frameBuf[y][x] = tex.TranNeg;
+						frameBuf[y][x] = tex.tranNeg;
 					}
 					// Normal case
 					else
 					{
 						// Baseboard wall transition
 						if (colTexL != colTex)
-						{ frameBuf[y][x] = tex.TranWall; }
+						{ frameBuf[y][x] = tex.tranWall; }
 						else
-						{ frameBuf[y][x] = tex.Tran; }
+						{ frameBuf[y][x] = tex.tran; }
 					}
 				}
 			}
@@ -575,7 +603,7 @@ int main()
 		if (input == 'm')
 		{
 			// Status Bar
-			printf("b = back | d = dump | r = resolution\n> ");
+			printf("b = back | d = dump | r = resolution | o = open map\n> ");
 			
 			// Get input
 			input = getch();
@@ -584,6 +612,7 @@ int main()
 				case 'b': { break; } // Return to main screen
 				case 'd': {	break; } // Enter dump screen
 				case 'r': { break; } // Enter res select screen
+				case 'o': { break; } // Enter res select screen
 				default:
 				{
 					// Re-enter options menu
@@ -598,9 +627,24 @@ int main()
 					   input != 'd'
 					&& input != 'm'
 					&& input != 'r'
+					&& input != 'o'
 				)
 				{ input = ' '; }
 			}
+		}
+		// Open map
+		else if (input == 'o')
+		{
+			// Status Bar
+			printf("Enter \"[map name].map\"\n> ");
+			
+			// Read map
+			char mapName[256];
+			scanf("%s", mapName);
+			map = readMap(mapName, &plr);
+			
+			// Return to main scene
+			input = ' ';
 		}
 		// Dump
 		else if (input == 'd')
@@ -621,7 +665,7 @@ int main()
 		else if (input == 'r')
 		{
 			// Status Bar
-			printf("Enter \"[console W] [console H] [font W] [font H]\"\n>" );
+			printf("Enter \"[console W] [console H] [font W] [font H]\"\n> " );
 			
 			// Get input
 			int consoleW;

@@ -23,8 +23,14 @@ Improved rayTheta spacing
 		+ plr.theta
 		
 Separate FOV for phi
-	fovPhi/fov = (eng.h * charH) / (eng.w * charW)
-	fovPhi = (eng.h * charH * fov) / (eng.w * charW)
+	tan(fov/2) = ((renW*fontW)/2) / A
+	A = (renW*fontW) / (2 * tan(fov/2)
+	tan(fovPhi/2) = ((renH*fontH)/2) / A
+	tan(fovPhi/2) = ((renH*fontH)/2) / ((renW*fontW) / (2 * tan(fov/2))
+	tan(fovPhi/2) = (renH * fontH * 2 * tan(fov/2)) / (2 * renW * fontW)
+	tan(fovPhi/2) = (renH * fontH * tan(fov/2)) / (renW * fontW)
+	fovPhi/2 = atan((renH * fontH * tan(fov/2)) / (renW * fontW))
+	fovPhi = 2 * atan((renH * fontH * tan(fov/2)) / (renW * fontW))
 	
 Wall detection
 	per ray

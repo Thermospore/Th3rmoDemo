@@ -10,7 +10,9 @@ general improvements
 		show current map name in selection menu
 		maybe list available maps?
 		prevent entering non existant or invalid maps
+		not requre entering ".map"
 	work out better names for ray shit
+		maybe a ray struct
 	prevent edge drawing from bleeding into different walls
 		maybe 2nd frame buff array to store col info
 			raytex, wall position, etc
@@ -18,9 +20,6 @@ general improvements
 		so it isn't hardcoded to a certain size
 	implement render distance into LR/FB raycasting thing
 		to improve efficiency
-	move to map struct
-		wallH
-		starting phi
 		
 new features
 	collision?
@@ -57,35 +56,32 @@ new features
 
 struct engineSettings
 {
-	// 3D render resolution, not including UI
-	int renW;
+	// Resolution
+	int renW;       // 3D render resolution, not including UI
 	int renH;
-	
-	// Console font resolution
-	int fontH;
+	int fontH;      // Console font resolution
 	int fontW;
 	
+	// Visibility
 	float fov;      // Base horizontal FOV in rad
 	float fovPhi;   // Vertical FOV derived from hor FOV, eng h&w, and character h&w
-	
 	float rendDist; // Walls cut off at this distance
-	float wallH;    // Height of walls
 };
 
 struct mapFile
 {
-	// 1 for box, 0 for no box
-	// No negative map positions
-	bool walls[50][50];
-	
-	// Used map area
-	int sizeY;
+	// Map
+	bool walls[50][50]; // 1 for box, 0 for no box
+	float wallH; // Height of walls
+	int sizeY;   // Size of map
 	int sizeX;
 	
 	// Player starting conditions
 	float startX;
 	float startY;
+	float startH;
 	float startTheta; // Radians
+	float startPhi;
 };
 
 struct player
@@ -175,13 +171,15 @@ struct mapFile readMap(const char* mapName, struct player* plr)
 	
 	// Read map meta data
 	float thetaDegrees = 0; // We will convert theta to radians
+	float phiDegrees   = 0;
 	fscanf(
-		pMap, "%d,%d,%f,%f,%f%*[^\n]\n"
-		, &map.sizeX, &map.sizeY
-		, &map.startX, &map.startY
-		, &thetaDegrees
+		pMap, "%d,%d,%f,%f,%f,%f,%f,%f%*[^\n]\n"
+		, &map.sizeX, &map.sizeY, &map.wallH
+		, &map.startX, &map.startY,  &map.startH
+		, &thetaDegrees, &phiDegrees
 	);
 	map.startTheta = thetaDegrees * DTR;
+	map.startPhi   = phiDegrees   * DTR;
 		
 	// Read map walls
 	fscanf(pMap, "%*[^\n]\n"); // Skip blank line
@@ -205,7 +203,9 @@ struct mapFile readMap(const char* mapName, struct player* plr)
 	// Place player in map
 	plr->x = map.startX;
 	plr->y = map.startY;
+	plr->h = map.startH;
 	plr->theta = map.startTheta;
+	plr->phi   = map.startPhi;
 
 	return map;
 }
@@ -221,12 +221,9 @@ int main()
 	eng.fov = 90 * DTR;
 	eng.fovPhi; // We will recalculate this each frame, in case engine settings are changed
 	eng.rendDist = 50;
-	eng.wallH = 1;
 	
 	// Set player atributes
 	struct player plr;
-	plr.h = 0.5;
-	plr.phi = PI/2; // Stuff gets curvy at different phi values...
 	plr.speedMov = 0.1;
 	plr.speedTurn = 10 * DTR;
 	
@@ -287,7 +284,7 @@ int main()
 			fprintf(
 				pLog, "%d,%d,%d,%d,%f,%f,%f,%f\n,\n"
 				, eng.renH, eng.renW, eng.fontH, eng.fontW
-				, eng.fov * RTD, eng.fovPhi * RTD, eng.rendDist, eng.wallH
+				, eng.fov * RTD, eng.fovPhi * RTD, eng.rendDist, map.wallH
 			);
 			
 			// Player info
@@ -415,7 +412,7 @@ int main()
 				
 				// Write phi ray results to frame buffer
 				// Ceiling
-				if (rayHeight >= eng.wallH)
+				if (rayHeight >= map.wallH)
 				{
 					frameBuf[p][r] = tex.ceiling;
 				}
@@ -427,7 +424,7 @@ int main()
 				// Wall
 				else if (
 					   rayHeight > 0
-					&& rayHeight < eng.wallH
+					&& rayHeight < map.wallH
 				)
 				{
 					frameBuf[p][r] = rayTex;

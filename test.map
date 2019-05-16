@@ -1,6 +1,6 @@
-sizeX,sizeY,startX,startY,startTheta (°),,,,,
-10,20,2.5,3.5,0,,,,,
-,,,,,,,,,
+sizeX,sizeY,wallH,startX,startY,startH,startTheta (°),startPhi (°)
+10,20,1,2.5,3.5,.5,0,90
+
 1,1,1,1,1,1,1,1,1,1
 1,0,0,0,0,0,0,0,0,1
 1,0,1,1,0,0,1,1,0,1

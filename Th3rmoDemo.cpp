@@ -10,9 +10,6 @@ general improvements
 		show current map name in selection menu
 		maybe list available maps?
 		prevent entering non existant or invalid maps
-	tex stuff
-		add a tex for unknown col ray
-		uncapitalize tex names
 	work out better names for ray shit
 	prevent edge drawing from bleeding into different walls
 		maybe 2nd frame buff array to store col info
@@ -109,16 +106,17 @@ struct player
 
 struct texturePack
 {
-	char WallLR;   // Left and Right walls
-	char WallFB;   // Front and Back walls
-	char Ceiling;
-	char Floor;
-	char Tran;     // When transitioning between texture types
-	char TranNeg;  // Negative slope
-	char TranPos;  // Pos slope
-	char TranCcu;  // Concave up
-	char TranCcd;  // Concave down
-	char TranWall; // Used on floor baseboard for when there is a different wall type adjacent
+	char wallLR;   // Left and Right walls
+	char wallFB;   // Front and Back walls
+	char ceiling;
+	char floor;
+	char tran;     // When transitioning between texture types
+	char tranNeg;  // Negative slope
+	char tranPos;  // Pos slope
+	char tranCcu;  // Concave up
+	char tranCcd;  // Concave down
+	char tranWall; // Used on floor baseboard for when there is a different wall type adjacent
+	char unknown;  // Used when you don't know what the hell is going on
 };
 
 // Takes a theta value and gives you the direction of north
@@ -237,16 +235,16 @@ int main()
 		
 	// Set texture pack
 	struct texturePack tex;
-	tex.WallLR  = '#';
-	tex.WallFB  = '7';
-	tex.Ceiling = ' ';
-	tex.Floor   = '.';
-	tex.Tran    = '_';
-	tex.TranNeg = '\\';
-	tex.TranPos = '/';
-	tex.TranCcu = 'V';
-	tex.TranCcd = '^';
-	tex.TranWall= 'L';
+	tex.wallLR  = '#';
+	tex.wallFB  = '7';
+	tex.ceiling = ' ';
+	tex.floor   = '.';
+	tex.tran    = '_';
+	tex.tranNeg = '\\';
+	tex.tranPos = '/';
+	tex.tranCcu = 'V';
+	tex.tranCcd = '^';
+	tex.tranWall= 'L';
 	
 	// Declare pointer to log file (only used when dumping)
 	FILE* pLog;
@@ -357,7 +355,7 @@ int main()
 				if (rayDistFB < rayDistLR)
 				{
 					rayDist = rayDistFB;
-					rayTex = tex.WallFB;
+					rayTex = tex.wallFB;
 					
 					wallY = (int)plr.y + (wallNFB+1) * sgn(sin(rayTheta)); // F and B equations merged
 					wallX = (int)(plr.x + rayDist * cos(rayTheta)); // F and B were the same
@@ -376,7 +374,7 @@ int main()
 				else
 				{
 					rayDist = rayDistLR;
-					rayTex = tex.WallLR;
+					rayTex = tex.wallLR;
 					
 					wallX = (int)plr.x + (wallNLR+1) * sgn(cos(rayTheta)); // L and R equations merged
 					wallY = (int)(plr.y + rayDist * sin(rayTheta)); // L and R were the same
@@ -419,12 +417,12 @@ int main()
 				// Ceiling
 				if (rayHeight >= eng.wallH)
 				{
-					frameBuf[p][r] = tex.Ceiling;
+					frameBuf[p][r] = tex.ceiling;
 				}
 				// Floor
 				else if (rayHeight <= 0)
 				{
-					frameBuf[p][r] = tex.Floor;
+					frameBuf[p][r] = tex.floor;
 				}
 				// Wall
 				else if (
@@ -437,7 +435,7 @@ int main()
 				// Unknown
 				else
 				{
-					frameBuf[p][r] = '?';
+					frameBuf[p][r] = tex.unknown;
 				}
 			}
 						
@@ -452,14 +450,14 @@ int main()
 					// Column Top
 					if (
 						   frameBuf[p  ][r] == rayTex
-						&& frameBuf[p-1][r] == tex.Ceiling
+						&& frameBuf[p-1][r] == tex.ceiling
 					)
 					{ colT = p; }
 					
 					// Column Bottom
 					if (
 						   frameBuf[p  ][r] == rayTex
-						&& frameBuf[p+1][r] == tex.Floor
+						&& frameBuf[p+1][r] == tex.floor
 					)
 					{ colB = p; }
 				}
@@ -493,7 +491,7 @@ int main()
 			{
 				// Ceiling trans
 				if (
-					   frameBuf[y  ][x  ] == tex.Ceiling
+					   frameBuf[y  ][x  ] == tex.ceiling
 					&& y + 1 < eng.renH // OOB prevention
 					&& frameBuf[y+1][x  ] == colTex
 				)
@@ -504,7 +502,7 @@ int main()
 						|| x == eng.renW - 1
 					)
 					{
-						frameBuf[y][x] = tex.Tran;
+						frameBuf[y][x] = tex.tran;
 					}
 					// Concave up trans
 					else if (
@@ -512,27 +510,27 @@ int main()
 						&& frameBuf[y  ][x+1] == colTexR
 					)
 					{
-						frameBuf[y][x] = tex.TranCcu;
+						frameBuf[y][x] = tex.tranCcu;
 					}
 					// Neg trans
 					else if (frameBuf[y  ][x-1] == colTexL)
 					{
-						frameBuf[y][x] = tex.TranNeg;
+						frameBuf[y][x] = tex.tranNeg;
 					}
 					// Pos trans
 					else if (frameBuf[y  ][x+1] == colTexR)
 					{
-						frameBuf[y][x] = tex.TranPos;
+						frameBuf[y][x] = tex.tranPos;
 					}
 					// Normal case
 					else
 					{
-						frameBuf[y][x] = tex.Tran;
+						frameBuf[y][x] = tex.tran;
 					}
 				}
 				// Floor trans
 				else if (
-					   frameBuf[y  ][x  ] == tex.Floor
+					   frameBuf[y  ][x  ] == tex.floor
 					&& y - 1 >= 0 // OOB prevention
 					&& frameBuf[y-1][x  ] == colTex
 				)
@@ -543,37 +541,37 @@ int main()
 						|| x == eng.renW - 1
 					)
 					{
-						frameBuf[y][x] = tex.Tran;
+						frameBuf[y][x] = tex.tran;
 					}
 					// Concave up
 					else if (
 						frameBuf[y-1][x+1] != colTexR
 						&& (
-							   frameBuf[y-1][x-1] == tex.Tran
-							|| frameBuf[y-1][x-1] == tex.TranNeg
+							   frameBuf[y-1][x-1] == tex.tran
+							|| frameBuf[y-1][x-1] == tex.tranNeg
 						)
 					)
 					{
-						frameBuf[y][x] = tex.TranCcu;
+						frameBuf[y][x] = tex.tranCcu;
 					}
 					// Pos trans
 					else if (frameBuf[y-1][x+1] != colTexR)
 					{
-						frameBuf[y][x] = tex.TranPos;
+						frameBuf[y][x] = tex.tranPos;
 					}
 					// Neg trans
 					else if (frameBuf[y-1][x-1] != colTexL)
 					{
-						frameBuf[y][x] = tex.TranNeg;
+						frameBuf[y][x] = tex.tranNeg;
 					}
 					// Normal case
 					else
 					{
 						// Baseboard wall transition
 						if (colTexL != colTex)
-						{ frameBuf[y][x] = tex.TranWall; }
+						{ frameBuf[y][x] = tex.tranWall; }
 						else
-						{ frameBuf[y][x] = tex.Tran; }
+						{ frameBuf[y][x] = tex.tran; }
 					}
 				}
 			}

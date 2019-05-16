@@ -6,18 +6,20 @@ bug fixes
 	prevent OOB on map array
 	
 general improvements
-	map selection
-		show current map name in selection menu
-		maybe list available maps?
-		prevent entering non existant or invalid maps
-		not requre entering ".map"
+	map stuff
+		map selection
+			show current map name in selection menu
+			maybe list available maps?
+			prevent entering non existant or invalid maps
+			not requre entering ".map"
+		make the walls array dynamic?
+			so it isn't hardcoded to a certain size
+		add starting movement speed to struct
 	work out better names for ray shit
 		maybe a ray struct
 	prevent edge drawing from bleeding into different walls
 		maybe 2nd frame buff array to store col info
 			raytex, wall position, etc
-	make the walls array dynamic?
-		so it isn't hardcoded to a certain size
 	implement render distance into LR/FB raycasting thing
 		to improve efficiency
 		
@@ -37,8 +39,8 @@ new features
 			and be able to see walls underneath behind them
 		be able to see top and underside of walls?
 	new UI engine
-	settings file?
 		maybe as a stop gap, add char var for menu subchoice
+	settings file?
 	be able to look up and down
 		wrapping?
 			flip player around when phi is greater than 180deg?
@@ -71,7 +73,7 @@ struct engineSettings
 struct mapFile
 {
 	// Map
-	bool walls[50][50]; // 1 for box, 0 for no box
+	bool walls[150][150]; // 1 for box, 0 for no box
 	float wallH; // Height of walls
 	int sizeY;   // Size of map
 	int sizeX;

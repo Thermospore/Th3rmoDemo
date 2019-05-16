@@ -6,6 +6,10 @@ bug fixes
 	prevent OOB on map array
 	
 general improvements
+	map selection
+		show current map name in selection menu
+		maybe list available maps?
+		prevent entering non existant or invalid maps
 	tex stuff
 		add a tex for unknown col ray
 		uncapitalize tex names
@@ -22,8 +26,6 @@ general improvements
 		starting phi
 		
 new features
-	be able to select a map from menu
-		move loading maps to a function
 	collision?
 		prevent entering or tracing rays into negative map values
 			maybe allow but just cut off entering map array?
@@ -165,22 +167,12 @@ float wrap(float &theta)
 	return theta;
 }
 
-int main()
+// Reads in a map file, places the player in it, and returns the map file
+struct mapFile readMap(const char* mapName, struct player* plr)
 {
-	// Initialize engine settings
-	struct engineSettings eng;
-	eng.fontH = 18;
-	eng.fontW = 10;
-	eng.renW = 80 - 1; // Subtract 1 column so you don't get two newlines
-	eng.renH = 25 - 2; // Subtract 2 lines for UI
-	eng.fov = 90 * DTR;
-	eng.fovPhi; // We will recalculate this each frame, in case engine settings are changed
-	eng.rendDist = 50;
-	eng.wallH = 1;
-	
-	// Define map and start to read it in
+	// Define mapFile struct and start to read it in
 	struct mapFile map;
-	FILE* pMap = fopen("default.map", "r");
+	FILE* pMap = fopen(mapName, "r");
 	fscanf(pMap, "%*[^\n]\n"); // Skip header
 	
 	// Read map meta data
@@ -212,16 +204,37 @@ int main()
 	}
 	fclose(pMap);
 	
-	// Place player in map and set attributes
+	// Place player in map
+	plr->x = map.startX;
+	plr->y = map.startY;
+	plr->theta = map.startTheta;
+
+	return map;
+}
+
+int main()
+{
+	// Initialize engine settings
+	struct engineSettings eng;
+	eng.fontH = 18;
+	eng.fontW = 10;
+	eng.renW = 80 - 1; // Subtract 1 column so you don't get two newlines
+	eng.renH = 25 - 2; // Subtract 2 lines for UI
+	eng.fov = 90 * DTR;
+	eng.fovPhi; // We will recalculate this each frame, in case engine settings are changed
+	eng.rendDist = 50;
+	eng.wallH = 1;
+	
+	// Set player atributes
 	struct player plr;
-	plr.x = map.startX;
-	plr.y = map.startY;
 	plr.h = 0.5;
-	plr.theta = map.startTheta;
 	plr.phi = PI/2; // Stuff gets curvy at different phi values...
 	plr.speedMov = 0.1;
 	plr.speedTurn = 10 * DTR;
 	
+	// Read default map and place the player in it
+	struct mapFile map = readMap("default.map", &plr);
+		
 	// Set texture pack
 	struct texturePack tex;
 	tex.WallLR  = '#';
@@ -593,7 +606,7 @@ int main()
 		if (input == 'm')
 		{
 			// Status Bar
-			printf("b = back | d = dump | r = resolution\n> ");
+			printf("b = back | d = dump | r = resolution | o = open map\n> ");
 			
 			// Get input
 			input = getch();
@@ -602,6 +615,7 @@ int main()
 				case 'b': { break; } // Return to main screen
 				case 'd': {	break; } // Enter dump screen
 				case 'r': { break; } // Enter res select screen
+				case 'o': { break; } // Enter res select screen
 				default:
 				{
 					// Re-enter options menu
@@ -616,9 +630,24 @@ int main()
 					   input != 'd'
 					&& input != 'm'
 					&& input != 'r'
+					&& input != 'o'
 				)
 				{ input = ' '; }
 			}
+		}
+		// Open map
+		else if (input == 'o')
+		{
+			// Status Bar
+			printf("Enter \"[map name].map\"\n> ");
+			
+			// Read map
+			char mapName[256];
+			scanf("%s", mapName);
+			map = readMap(mapName, &plr);
+			
+			// Return to main scene
+			input = ' ';
 		}
 		// Dump
 		else if (input == 'd')
@@ -639,7 +668,7 @@ int main()
 		else if (input == 'r')
 		{
 			// Status Bar
-			printf("Enter \"[console W] [console H] [font W] [font H]\"\n>" );
+			printf("Enter \"[console W] [console H] [font W] [font H]\"\n> " );
 			
 			// Get input
 			int consoleW;
